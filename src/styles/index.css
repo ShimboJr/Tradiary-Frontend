@@ -1,0 +1,172 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   styles/index.css
+   Global design tokens + base styles.
+   Tailwind utilities build on top of these CSS variables so both light and dark
+   modes get the same semantic token names.
+───────────────────────────────────────────────────────────────────────────── */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Google Fonts fallback (already loaded via <link> in index.html) ──────── */
+
+/* ─── Design Tokens ─────────────────────────────────────────────────────────── */
+:root {
+  /* Dark mode is the default */
+  color-scheme: dark;
+
+  --color-bg:           hsl(222, 20%, 10%);
+  --color-surface:      hsl(222, 18%, 12%);
+  --color-surface-100:  hsl(222, 16%, 15%);
+  --color-surface-200:  hsl(222, 14%, 19%);
+  --color-surface-300:  hsl(222, 12%, 24%);
+  --color-border:       hsl(222, 12%, 24%);
+
+  --color-text-primary:   hsl(220, 15%, 95%);
+  --color-text-secondary: hsl(220, 10%, 65%);
+  --color-text-muted:     hsl(220, 8%, 45%);
+
+  --color-brand:          hsl(213, 90%, 58%);
+  --color-brand-muted:    hsl(213, 60%, 45%);
+  --color-brand-subtle:   hsl(213, 40%, 20%);
+
+  --color-gain:           hsl(152, 70%, 48%);
+  --color-gain-subtle:    hsl(152, 40%, 12%);
+  --color-gain-text:      hsl(152, 65%, 55%);
+
+  --color-loss:           hsl(4, 82%, 55%);
+  --color-loss-subtle:    hsl(4, 50%, 12%);
+  --color-loss-text:      hsl(4, 75%, 60%);
+
+  --color-warning:        hsl(38, 92%, 55%);
+  --color-warning-subtle: hsl(38, 60%, 12%);
+
+  --sidebar-width:        240px;
+  --sidebar-collapsed:    64px;
+  --topbar-height:        60px;
+
+  --radius:               0.5rem;
+  --radius-lg:            0.75rem;
+
+  --transition-fast:      150ms ease;
+  --transition-base:      200ms ease;
+  --transition-slow:      350ms ease;
+}
+
+/* ─── Light mode overrides ───────────────────────────────────────────────── */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg:           hsl(220, 20%, 97%);
+  --color-surface:      hsl(0, 0%, 100%);
+  --color-surface-100:  hsl(220, 18%, 96%);
+  --color-surface-200:  hsl(220, 15%, 92%);
+  --color-surface-300:  hsl(220, 12%, 85%);
+  --color-border:       hsl(220, 15%, 88%);
+
+  --color-text-primary:   hsl(222, 20%, 12%);
+  --color-text-secondary: hsl(222, 12%, 40%);
+  --color-text-muted:     hsl(222, 8%, 58%);
+
+  --color-brand:          hsl(213, 85%, 50%);
+  --color-brand-muted:    hsl(213, 65%, 40%);
+  --color-brand-subtle:   hsl(213, 50%, 92%);
+
+  --color-gain-subtle:    hsl(152, 40%, 90%);
+  --color-loss-subtle:    hsl(4, 50%, 92%);
+  --color-warning-subtle: hsl(38, 60%, 92%);
+}
+
+/* ─── Base Reset / Body ─────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  min-height: 100dvh;
+  transition: background-color var(--transition-slow), color var(--transition-base);
+}
+
+/* ─── Scrollbar Styling ─────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-300);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand-muted);
+}
+
+/* ─── Selection ─────────────────────────────────────────────────────────── */
+::selection {
+  background: var(--color-brand-subtle);
+  color: var(--color-text-primary);
+}
+
+/* ─── Focus Ring ────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+/* ─── Typography utilities ──────────────────────────────────────────────── */
+.text-gain  { color: var(--color-gain-text); }
+.text-loss  { color: var(--color-loss-text); }
+.text-brand { color: var(--color-brand); }
+
+.bg-gain-subtle { background-color: var(--color-gain-subtle); }
+.bg-loss-subtle { background-color: var(--color-loss-subtle); }
+
+/* ─── Number / mono ─────────────────────────────────────────────────────── */
+.font-num {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Card base ─────────────────────────────────────────────────────────── */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  transition: box-shadow var(--transition-base);
+}
+.card:hover { box-shadow: 0 4px 12px 0 rgba(0,0,0,0.4); }
+
+/* ─── Sidebar transition ────────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-width);
+  transition: width var(--transition-slow);
+}
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed);
+}
+
+/* ─── Shimmer loading skeleton ──────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-200) 25%,
+    var(--color-surface-300) 50%,
+    var(--color-surface-200) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
+  border-radius: var(--radius);
+}
