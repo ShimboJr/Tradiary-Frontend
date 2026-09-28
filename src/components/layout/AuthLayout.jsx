@@ -11,6 +11,7 @@ import { Link, Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { TrendingUp, BarChart3, CheckCircle2 } from 'lucide-react';
 import { selectTheme } from '@/features/ui/uiSlice';
+import Toaster from '@/components/ui/Toast';
 
 const FEATURES = [
   'Unlimited trades — always free',
@@ -115,6 +116,8 @@ const AuthLayout = () => {
           <Outlet />
         </div>
       </div>
+
+      <Toaster />
     </div>
   );
 };

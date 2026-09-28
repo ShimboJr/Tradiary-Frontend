@@ -140,19 +140,36 @@ const authSlice = createSlice({
     // ── register ──────────────────────────────────────────────────────────────
     builder
       .addCase(register.pending,   (state) => { state.status = 'loading'; state.error = null; })
-      .addCase(register.fulfilled, fulfilled)
+      .addCase(register.fulfilled, (state, action) => {
+        state.user = action.payload.user;
+        state.accessToken = action.payload.accessToken;
+        state.status = 'succeeded';
+        state.error = null;
+        state.bootstrapped = true;
+      })
       .addCase(register.rejected,  (state, a) => { state.status = 'failed'; state.error = a.payload; });
 
     // ── login ─────────────────────────────────────────────────────────────────
     builder
       .addCase(login.pending,   (state) => { state.status = 'loading'; state.error = null; })
-      .addCase(login.fulfilled, fulfilled)
+      .addCase(login.fulfilled, (state, action) => {
+        state.user = action.payload.user;
+        state.accessToken = action.payload.accessToken;
+        state.status = 'succeeded';
+        state.error = null;
+        state.bootstrapped = true;
+      })
       .addCase(login.rejected,  (state, a) => { state.status = 'failed'; state.error = a.payload; });
 
-    // ── googleAuth ────────────────────────────────────────────────────────────
     builder
       .addCase(googleAuth.pending,   (state) => { state.status = 'loading'; state.error = null; })
-      .addCase(googleAuth.fulfilled, fulfilled)
+      .addCase(googleAuth.fulfilled, (state, action) => {
+        state.user = action.payload.user;
+        state.accessToken = action.payload.accessToken;
+        state.status = 'succeeded';
+        state.error = null;
+        state.bootstrapped = true;
+      })
       .addCase(googleAuth.rejected,  (state, a) => { state.status = 'failed'; state.error = a.payload; });
 
     // ── refresh ───────────────────────────────────────────────────────────────
