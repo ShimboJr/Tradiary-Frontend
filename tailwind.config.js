@@ -7,54 +7,57 @@ export default {
 
   theme: {
     extend: {
-      // ─── Colour Palette ─────────────────────────────────────────────────────
+      // ─── Colour Palette (Tradiary brand spec) ─────────────────────────────
       colors: {
-        // Backgrounds (dark-mode primary)
+        // Canonical brand tokens — these are the source of truth
+        bg: 'var(--bg)',
         surface: {
-          DEFAULT: 'hsl(222, 20%, 10%)',   // deepest bg
-          50:      'hsl(222, 18%, 12%)',   // card bg
-          100:     'hsl(222, 16%, 15%)',   // raised surface
-          200:     'hsl(222, 14%, 19%)',   // hover / input bg
-          300:     'hsl(222, 12%, 24%)',   // border / divider
+          DEFAULT: 'var(--surface)',
+          raised:  'var(--surface-raised)',
+          100:     'var(--surface-100)',
+          200:     'var(--surface-200)',
+          300:     'var(--surface-300)',
         },
-        // Primary brand — indigo-teal
-        brand: {
-          DEFAULT: 'hsl(213, 90%, 58%)',   // #2a9df4 tone
-          muted:   'hsl(213, 60%, 45%)',
-          subtle:  'hsl(213, 40%, 25%)',
-        },
-        // Semantic: profit / gain
-        gain: {
-          DEFAULT: 'hsl(152, 70%, 48%)',   // emerald green
-          subtle:  'hsl(152, 40%, 15%)',
-          text:    'hsl(152, 65%, 55%)',
-        },
-        // Semantic: loss
-        loss: {
-          DEFAULT: 'hsl(4, 82%, 55%)',     // vivid red
-          subtle:  'hsl(4, 50%, 15%)',
-          text:    'hsl(4, 75%, 60%)',
-        },
-        // Text scale
+        border: 'var(--border)',
+
+        // Text
         text: {
-          primary:   'hsl(220, 15%, 95%)',
-          secondary: 'hsl(220, 10%, 65%)',
-          muted:     'hsl(220, 8%, 45%)',
-          inverted:  'hsl(222, 20%, 10%)',
+          DEFAULT: 'var(--text)',
+          muted:   'var(--text-muted)',
         },
-        // Light mode overrides (applied via CSS variables — see index.css)
-        light: {
-          bg:       'hsl(220, 20%, 97%)',
-          surface:  'hsl(0, 0%, 100%)',
-          border:   'hsl(220, 15%, 88%)',
-          text:     'hsl(222, 20%, 12%)',
+
+        // Brand
+        brand: {
+          indigo:  'var(--brand-indigo)',
+          cyan:    'var(--brand-cyan)',
+          DEFAULT: 'var(--brand-indigo)',
+          subtle:  'var(--brand-indigo-subtle)',
+          muted:   'var(--color-brand-muted)',
+        },
+
+        // Semantic: profit/loss (reserved — never use decoratively)
+        gain: {
+          DEFAULT: 'var(--gain)',
+          subtle:  'var(--gain-subtle)',
+          text:    'var(--gain-text)',
+        },
+        loss: {
+          DEFAULT: 'var(--loss)',
+          subtle:  'var(--loss-subtle)',
+          text:    'var(--loss-text)',
+        },
+
+        warning: {
+          DEFAULT: 'var(--warning)',
+          subtle:  'var(--warning-subtle)',
         },
       },
 
       // ─── Typography ─────────────────────────────────────────────────────────
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+        sans:    ['Inter', 'Manrope', 'system-ui', 'sans-serif'],
+        display: ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
+        mono:    ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       fontSize: {
         '2xs': ['0.65rem', { lineHeight: '1rem' }],
@@ -72,11 +75,12 @@ export default {
 
       // ─── Shadows ────────────────────────────────────────────────────────────
       boxShadow: {
-        card:    '0 1px 3px 0 rgba(0,0,0,0.35), 0 1px 2px -1px rgba(0,0,0,0.35)',
-        'card-hover': '0 4px 12px 0 rgba(0,0,0,0.4)',
-        glow:    '0 0 16px 0 rgba(42, 157, 244, 0.25)',
-        'gain-glow': '0 0 12px 0 rgba(52, 211, 153, 0.3)',
-        'loss-glow': '0 0 12px 0 rgba(239, 68, 68, 0.3)',
+        card:         '0 1px 3px 0 rgba(0,0,0,0.35), 0 1px 2px -1px rgba(0,0,0,0.35)',
+        'card-hover': '0 4px 16px 0 rgba(0,0,0,0.4)',
+        glow:         '0 0 20px 0 rgba(91,108,255,0.25)',
+        'glow-cyan':  '0 0 20px 0 rgba(34,211,238,0.20)',
+        'gain-glow':  '0 0 12px 0 rgba(34,197,94,0.30)',
+        'loss-glow':  '0 0 12px 0 rgba(239,68,68,0.30)',
       },
 
       // ─── Transitions ────────────────────────────────────────────────────────
@@ -92,24 +96,39 @@ export default {
           '0%':   { opacity: '0', transform: 'translateY(4px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        'fade-up': {
+          '0%':   { opacity: '0', transform: 'translateY(16px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
         'slide-in': {
           '0%':   { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(0)' },
+        },
+        'slide-up': {
+          '0%':   { transform: 'translateY(100%)' },
+          '100%': { transform: 'translateY(0)' },
         },
         'pulse-soft': {
           '0%, 100%': { opacity: '1' },
           '50%':      { opacity: '0.6' },
         },
-        'shimmer': {
+        shimmer: {
           '0%':   { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
+        },
+        'spin-slow': {
+          '0%':   { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
         },
       },
       animation: {
         'fade-in':    'fade-in 0.2s ease-out',
+        'fade-up':    'fade-up 0.3s ease-out',
         'slide-in':   'slide-in 0.25s ease-out',
+        'slide-up':   'slide-up 0.3s ease-out',
         'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
-        'shimmer':    'shimmer 2.5s linear infinite',
+        shimmer:      'shimmer 2.5s linear infinite',
+        'spin-slow':  'spin-slow 3s linear infinite',
       },
     },
   },

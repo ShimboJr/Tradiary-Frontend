@@ -1,7 +1,8 @@
 /**
  * components/layout/Sidebar.jsx
- * Collapsible left navigation sidebar.
- * Reads collapsed state from Redux and toggles via uiSlice.
+ * Collapsible left navigation sidebar with Logo component.
+ * Full lockup when expanded, icon-only when collapsed.
+ * Hidden on mobile (MobileNav handles those viewports).
  */
 
 import React from 'react';
@@ -15,7 +16,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  TrendingUp,
   NotebookPen,
   Target,
   AlertOctagon,
@@ -23,6 +23,7 @@ import {
   Calculator,
 } from 'lucide-react';
 import { toggleSidebar, selectSidebarCollapsed } from '@/features/ui/uiSlice';
+import Logo from '@/components/ui/Logo';
 
 const NAV_SECTIONS = [
   {
@@ -61,8 +62,8 @@ const NavItem = ({ to, label, icon: Icon, collapsed }) => (
         'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium',
         'transition-all duration-[150ms]',
         isActive
-          ? 'bg-[var(--color-brand-subtle)] text-[var(--color-brand)]'
-          : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-100)] hover:text-[var(--color-text-primary)]',
+          ? 'bg-[var(--brand-indigo-subtle)] text-[var(--brand-indigo)]'
+          : 'text-[var(--text-muted)] hover:bg-[var(--surface-100)] hover:text-[var(--text)]',
       ].join(' ')
     }
   >
@@ -84,23 +85,20 @@ const Sidebar = () => {
     <aside
       className={[
         'fixed inset-y-0 left-0 z-40 flex flex-col',
-        'border-r border-[var(--color-border)] bg-[var(--color-surface)]',
+        'border-r border-[var(--border)] bg-[var(--surface)]',
         'transition-[width] duration-300 ease-in-out',
+        // Hidden on mobile — MobileNav takes over
+        'hidden lg:flex',
         collapsed ? 'w-16' : 'w-[240px]',
       ].join(' ')}
     >
       {/* ── Logo ── */}
-      <div className="flex h-[60px] items-center border-b border-[var(--color-border)] px-4">
-        <div className="flex items-center gap-2.5 overflow-hidden">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-brand)] shadow-glow">
-            <TrendingUp size={16} className="text-white" />
-          </div>
-          {!collapsed && (
-            <span className="text-base font-bold tracking-tight text-[var(--color-text-primary)] animate-fade-in">
-              Tradiary
-            </span>
-          )}
-        </div>
+      <div className="flex h-[60px] items-center border-b border-[var(--border)] px-4">
+        {collapsed ? (
+          <Logo variant="icon" size={28} />
+        ) : (
+          <Logo variant="full" size={28} className="animate-fade-in" />
+        )}
       </div>
 
       {/* ── Navigation ── */}
@@ -109,7 +107,7 @@ const Sidebar = () => {
           {NAV_SECTIONS.map(section => (
             <div key={section.label}>
               {!collapsed && (
-                <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
+                <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
                   {section.label}
                 </p>
               )}
@@ -124,14 +122,15 @@ const Sidebar = () => {
       </nav>
 
       {/* ── Collapse Toggle ── */}
-      <div className="border-t border-[var(--color-border)] p-2">
+      <div className="border-t border-[var(--border)] p-2">
         <button
           id="sidebar-toggle"
           onClick={() => dispatch(toggleSidebar())}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           className={[
             'flex w-full items-center rounded-lg px-3 py-2 text-sm',
-            'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-100)] hover:text-[var(--color-text-primary)]',
+            'text-[var(--text-muted)] hover:bg-[var(--surface-100)] hover:text-[var(--text)]',
             'transition-all duration-150',
             collapsed ? 'justify-center' : 'gap-3',
           ].join(' ')}

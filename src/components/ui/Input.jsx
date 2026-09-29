@@ -1,6 +1,6 @@
 /**
  * components/ui/Input.jsx
- * Shared text input primitive with label, error, left/right addons.
+ * Shared text input primitive with optional label, error, hint, left/right addons.
  */
 
 import React from 'react';
@@ -26,7 +26,7 @@ const Input = React.forwardRef(
         {label && (
           <label
             htmlFor={inputId}
-            className="text-sm font-medium text-[var(--color-text-secondary)]"
+            className="text-sm font-medium text-[var(--text)]"
           >
             {label}
           </label>
@@ -34,7 +34,7 @@ const Input = React.forwardRef(
 
         <div className="relative flex items-center">
           {leftAddon && (
-            <span className="absolute left-3 flex items-center text-[var(--color-text-muted)]">
+            <span className="absolute left-3 flex items-center text-[var(--text-muted)]">
               {leftAddon}
             </span>
           )}
@@ -43,16 +43,16 @@ const Input = React.forwardRef(
             ref={ref}
             id={inputId}
             className={[
-              'w-full rounded-md border bg-[var(--color-surface-200)]',
-              'text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]',
-              'transition-all duration-[var(--transition-fast)]',
-              'focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent',
+              'w-full rounded-lg border bg-[var(--surface-200)]',
+              'text-[var(--text)] placeholder:text-[var(--text-muted)]',
+              'transition-all duration-150',
+              'focus:outline-none focus:ring-2 focus:ring-[var(--brand-indigo)] focus:border-transparent',
               'h-9 px-3 text-sm',
-              leftAddon ? 'pl-9' : '',
-              rightAddon ? 'pr-9' : '',
+              leftAddon  ? 'pl-9'  : '',
+              rightAddon ? 'pr-9'  : '',
               error
-                ? 'border-[var(--color-loss)] focus:ring-[var(--color-loss)]'
-                : 'border-[var(--color-border)]',
+                ? 'border-[var(--loss)] focus:ring-[var(--loss)]'
+                : 'border-[var(--border)]',
               className,
             ]
               .filter(Boolean)
@@ -61,17 +61,17 @@ const Input = React.forwardRef(
           />
 
           {rightAddon && (
-            <span className="absolute right-3 flex items-center text-[var(--color-text-muted)]">
+            <span className="absolute right-3 flex items-center text-[var(--text-muted)]">
               {rightAddon}
             </span>
           )}
         </div>
 
         {error && (
-          <p className="text-xs text-[var(--color-loss-text)]">{error}</p>
+          <p className="text-xs text-[var(--loss-text)]">{error}</p>
         )}
         {hint && !error && (
-          <p className="text-xs text-[var(--color-text-muted)]">{hint}</p>
+          <p className="text-xs text-[var(--text-muted)]">{hint}</p>
         )}
       </div>
     );

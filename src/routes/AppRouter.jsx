@@ -8,40 +8,51 @@ import AppShell      from '@/components/layout/AppShell';
 import PublicLayout  from '@/components/layout/PublicLayout';
 import AuthLayout    from '@/components/layout/AuthLayout';
 import ProtectedRoute from './ProtectedRoute';
-import PlaceholderPage from '@/pages/PlaceholderPage';
+import Logo from '@/components/ui/Logo';
 
-// ── Lazy-loaded pages ─────────────────────────────────────────────────────────
-const LandingPage          = lazy(() => import('@/pages/LandingPage'));
-const SignInPage           = lazy(() => import('@/pages/auth/SignInPage'));
-const SignUpPage           = lazy(() => import('@/pages/auth/SignUpPage'));
-const ForgotPasswordPage   = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
-const ResetPasswordPage    = lazy(() => import('@/pages/auth/ResetPasswordPage'));
-const VerifyEmailPage      = lazy(() => import('@/pages/auth/VerifyEmailPage'));
-// App
-const DashboardPage        = lazy(() => import('@/pages/app/DashboardPage'));
-const TradesPage           = lazy(() => import('@/pages/app/TradesPage'));
-const TradeDetailPage      = lazy(() => import('@/pages/app/TradeDetailPage'));
-const CalendarPage         = lazy(() => import('@/pages/app/CalendarPage'));
-const PlaybooksPage        = lazy(() => import('@/pages/app/PlaybooksPage'));
-const StrategyDetailPage   = lazy(() => import('@/pages/app/StrategyDetailPage'));
-const JournalPage          = lazy(() => import('@/pages/app/JournalPage'));
-const GoalsPage            = lazy(() => import('@/pages/app/GoalsPage'));
-const MistakesPage         = lazy(() => import('@/pages/app/MistakesPage'));
-const WatchlistPage        = lazy(() => import('@/pages/app/WatchlistPage'));
-const RiskCalculatorPage   = lazy(() => import('@/pages/app/RiskCalculatorPage'));
+// ── Public ───────────────────────────────────────────────────────────────────
+const LandingPage        = lazy(() => import('@/pages/LandingPage'));
+const TermsPage          = lazy(() => import('@/pages/TermsPage'));
+const PrivacyPage        = lazy(() => import('@/pages/PrivacyPage'));
+const NotFoundPage       = lazy(() => import('@/pages/NotFoundPage'));
 
+// ── Auth ─────────────────────────────────────────────────────────────────────
+const SignInPage         = lazy(() => import('@/pages/auth/SignInPage'));
+const SignUpPage         = lazy(() => import('@/pages/auth/SignUpPage'));
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage  = lazy(() => import('@/pages/auth/ResetPasswordPage'));
+const VerifyEmailPage    = lazy(() => import('@/pages/auth/VerifyEmailPage'));
+
+// ── App ──────────────────────────────────────────────────────────────────────
+const DashboardPage      = lazy(() => import('@/pages/app/DashboardPage'));
+const TradesPage         = lazy(() => import('@/pages/app/TradesPage'));
+const TradeDetailPage    = lazy(() => import('@/pages/app/TradeDetailPage'));
+const CalendarPage       = lazy(() => import('@/pages/app/CalendarPage'));
+const PlaybooksPage      = lazy(() => import('@/pages/app/PlaybooksPage'));
+const StrategyDetailPage = lazy(() => import('@/pages/app/StrategyDetailPage'));
+const JournalPage        = lazy(() => import('@/pages/app/JournalPage'));
+const GoalsPage          = lazy(() => import('@/pages/app/GoalsPage'));
+const MistakesPage       = lazy(() => import('@/pages/app/MistakesPage'));
+const WatchlistPage      = lazy(() => import('@/pages/app/WatchlistPage'));
+const RiskCalculatorPage = lazy(() => import('@/pages/app/RiskCalculatorPage'));
+const SettingsPage       = lazy(() => import('@/pages/app/SettingsPage'));
+
+// ── Splash loader ─────────────────────────────────────────────────────────────
 const PageLoader = () => (
-  <div className="flex h-64 items-center justify-center">
-    <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-brand)] border-t-transparent" />
+  <div className="flex h-screen flex-col items-center justify-center gap-4 bg-[var(--bg)]">
+    <Logo variant="full" size={36} />
+    <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--brand-indigo)] border-t-transparent" />
   </div>
 );
 
 const AppRouter = () => (
   <Suspense fallback={<PageLoader />}>
     <Routes>
-      {/* ── Landing ── */}
+      {/* ── Public pages ── */}
       <Route element={<PublicLayout />}>
         <Route index element={<LandingPage />} />
+        <Route path="/terms"   element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
       </Route>
 
       {/* ── Auth pages (split-screen layout) ── */}
@@ -66,19 +77,19 @@ const AppRouter = () => (
           <Route path="playbooks"      element={<PlaybooksPage />} />
           <Route path="playbooks/:id"  element={<StrategyDetailPage />} />
           {/* Insights */}
-          <Route path="journal"     element={<JournalPage />} />
-          <Route path="goals"       element={<GoalsPage />} />
-          <Route path="mistakes"    element={<MistakesPage />} />
-          <Route path="watchlist"   element={<WatchlistPage />} />
+          <Route path="journal"    element={<JournalPage />} />
+          <Route path="goals"      element={<GoalsPage />} />
+          <Route path="mistakes"   element={<MistakesPage />} />
+          <Route path="watchlist"  element={<WatchlistPage />} />
           {/* Tools */}
           <Route path="tools/risk-calculator" element={<RiskCalculatorPage />} />
-          {/* Settings (placeholder for now) */}
-          <Route path="settings"    element={<PlaceholderPage title="Settings" description="Account and preferences — coming soon." />} />
+          {/* Settings */}
+          <Route path="settings"   element={<SettingsPage />} />
         </Route>
       </Route>
 
       {/* ── 404 ── */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   </Suspense>
 );

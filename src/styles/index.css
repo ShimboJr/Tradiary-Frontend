@@ -1,81 +1,140 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    styles/index.css
    Global design tokens + base styles.
-   Tailwind utilities build on top of these CSS variables so both light and dark
-   modes get the same semantic token names.
+   Tradiary brand palette — dark is default, light via [data-theme="light"].
+   Token naming follows the spec:
+     --bg, --surface, --surface-raised, --border
+     --text, --text-muted
+     --brand-indigo, --brand-cyan
+     --gain, --loss
+   Legacy --color-* aliases are kept for backward compat with existing pages.
 ───────────────────────────────────────────────────────────────────────────── */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Google Fonts fallback (already loaded via <link> in index.html) ──────── */
-
-/* ─── Design Tokens ─────────────────────────────────────────────────────────── */
+/* ─── Design Tokens — Dark (default) ────────────────────────────────────────── */
 :root {
-  /* Dark mode is the default */
   color-scheme: dark;
 
-  --color-bg:           hsl(222, 20%, 10%);
-  --color-surface:      hsl(222, 18%, 12%);
-  --color-surface-100:  hsl(222, 16%, 15%);
-  --color-surface-200:  hsl(222, 14%, 19%);
-  --color-surface-300:  hsl(222, 12%, 24%);
-  --color-border:       hsl(222, 12%, 24%);
+  /* ── Canonical tokens (spec) ────────────────────────────── */
+  --bg:               #0B1220;
+  --surface:          #111A2E;
+  --surface-raised:   #16213A;
+  --border:           #1E2A44;
+  --text:             #E6EBF5;
+  --text-muted:       #8A97B2;
+  --brand-indigo:     #5B6CFF;
+  --brand-cyan:       #22D3EE;
+  --gain:             #22C55E;
+  --loss:             #EF4444;
 
-  --color-text-primary:   hsl(220, 15%, 95%);
-  --color-text-secondary: hsl(220, 10%, 65%);
-  --color-text-muted:     hsl(220, 8%, 45%);
+  /* ── Extended surface scale ─────────────────────────────── */
+  --surface-100:      #16213A;   /* raised card */
+  --surface-200:      #1C2B48;   /* hover / input bg */
+  --surface-300:      #243358;   /* border-level raised */
 
-  --color-brand:          hsl(213, 90%, 58%);
-  --color-brand-muted:    hsl(213, 60%, 45%);
-  --color-brand-subtle:   hsl(213, 40%, 20%);
+  /* ── Brand aliases ──────────────────────────────────────── */
+  --brand-indigo-subtle: rgba(91, 108, 255, 0.12);
+  --brand-cyan-subtle:   rgba(34, 211, 238, 0.12);
 
-  --color-gain:           hsl(152, 70%, 48%);
-  --color-gain-subtle:    hsl(152, 40%, 12%);
-  --color-gain-text:      hsl(152, 65%, 55%);
+  /* ── Semantic P&L ────────────────────────────────────────── */
+  --gain-subtle:      rgba(34, 197, 94, 0.12);
+  --gain-text:        #4ade80;
+  --loss-subtle:      rgba(239, 68, 68, 0.12);
+  --loss-text:        #f87171;
 
-  --color-loss:           hsl(4, 82%, 55%);
-  --color-loss-subtle:    hsl(4, 50%, 12%);
-  --color-loss-text:      hsl(4, 75%, 60%);
+  /* ── Warning ─────────────────────────────────────────────── */
+  --warning:          #F59E0B;
+  --warning-subtle:   rgba(245, 158, 11, 0.12);
 
-  --color-warning:        hsl(38, 92%, 55%);
-  --color-warning-subtle: hsl(38, 60%, 12%);
+  /* ── Layout ──────────────────────────────────────────────── */
+  --sidebar-width:    240px;
+  --sidebar-collapsed: 64px;
+  --topbar-height:    60px;
 
-  --sidebar-width:        240px;
-  --sidebar-collapsed:    64px;
-  --topbar-height:        60px;
+  /* ── Radii ───────────────────────────────────────────────── */
+  --radius:           0.5rem;
+  --radius-lg:        0.75rem;
+  --radius-xl:        1rem;
 
-  --radius:               0.5rem;
-  --radius-lg:            0.75rem;
+  /* ── Transitions ─────────────────────────────────────────── */
+  --transition-fast:  150ms ease;
+  --transition-base:  200ms ease;
+  --transition-slow:  350ms ease;
 
-  --transition-fast:      150ms ease;
-  --transition-base:      200ms ease;
-  --transition-slow:      350ms ease;
+  /* ── Legacy aliases (keep existing pages working) ────────── */
+  --color-bg:              var(--bg);
+  --color-surface:         var(--surface);
+  --color-surface-100:     var(--surface-100);
+  --color-surface-200:     var(--surface-200);
+  --color-surface-300:     var(--surface-300);
+  --color-border:          var(--border);
+  --color-text-primary:    var(--text);
+  --color-text-secondary:  var(--text-muted);
+  --color-text-muted:      var(--text-muted);
+  --color-brand:           var(--brand-indigo);
+  --color-brand-muted:     #4754CC;
+  --color-brand-subtle:    var(--brand-indigo-subtle);
+  --color-gain:            var(--gain);
+  --color-gain-subtle:     var(--gain-subtle);
+  --color-gain-text:       var(--gain-text);
+  --color-loss:            var(--loss);
+  --color-loss-subtle:     var(--loss-subtle);
+  --color-loss-text:       var(--loss-text);
+  --color-warning:         var(--warning);
+  --color-warning-subtle:  var(--warning-subtle);
 }
 
-/* ─── Light mode overrides ───────────────────────────────────────────────── */
+/* ─── Light Mode Overrides ───────────────────────────────────────────────── */
 [data-theme="light"] {
   color-scheme: light;
 
-  --color-bg:           hsl(220, 20%, 97%);
-  --color-surface:      hsl(0, 0%, 100%);
-  --color-surface-100:  hsl(220, 18%, 96%);
-  --color-surface-200:  hsl(220, 15%, 92%);
-  --color-surface-300:  hsl(220, 12%, 85%);
-  --color-border:       hsl(220, 15%, 88%);
+  --bg:               #F6F8FC;
+  --surface:          #FFFFFF;
+  --surface-raised:   #FFFFFF;
+  --border:           #E2E8F3;
+  --text:             #0B1220;
+  --text-muted:       #5B6784;
+  --brand-indigo:     #4F5DF0;
+  --brand-cyan:       #0891B2;
+  --gain:             #16A34A;
+  --loss:             #DC2626;
 
-  --color-text-primary:   hsl(222, 20%, 12%);
-  --color-text-secondary: hsl(222, 12%, 40%);
-  --color-text-muted:     hsl(222, 8%, 58%);
+  --surface-100:      #F0F4FB;
+  --surface-200:      #E8EEF7;
+  --surface-300:      #D8E2F0;
 
-  --color-brand:          hsl(213, 85%, 50%);
-  --color-brand-muted:    hsl(213, 65%, 40%);
-  --color-brand-subtle:   hsl(213, 50%, 92%);
+  --brand-indigo-subtle: rgba(79, 93, 240, 0.08);
+  --brand-cyan-subtle:   rgba(8, 145, 178, 0.08);
+  --gain-subtle:      rgba(22, 163, 74, 0.10);
+  --gain-text:        #16A34A;
+  --loss-subtle:      rgba(220, 38, 38, 0.10);
+  --loss-text:        #DC2626;
+  --warning-subtle:   rgba(245, 158, 11, 0.10);
 
-  --color-gain-subtle:    hsl(152, 40%, 90%);
-  --color-loss-subtle:    hsl(4, 50%, 92%);
-  --color-warning-subtle: hsl(38, 60%, 92%);
+  /* Legacy */
+  --color-bg:              var(--bg);
+  --color-surface:         var(--surface);
+  --color-surface-100:     var(--surface-100);
+  --color-surface-200:     var(--surface-200);
+  --color-surface-300:     var(--surface-300);
+  --color-border:          var(--border);
+  --color-text-primary:    var(--text);
+  --color-text-secondary:  var(--text-muted);
+  --color-text-muted:      var(--text-muted);
+  --color-brand:           var(--brand-indigo);
+  --color-brand-muted:     #3D4BC0;
+  --color-brand-subtle:    var(--brand-indigo-subtle);
+  --color-gain:            var(--gain);
+  --color-gain-subtle:     var(--gain-subtle);
+  --color-gain-text:       var(--gain-text);
+  --color-loss:            var(--loss);
+  --color-loss-subtle:     var(--loss-subtle);
+  --color-loss-text:       var(--loss-text);
+  --color-warning:         var(--warning);
+  --color-warning-subtle:  var(--warning-subtle);
 }
 
 /* ─── Base Reset / Body ─────────────────────────────────────────────────── */
@@ -93,47 +152,56 @@ html {
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--color-bg);
-  color: var(--color-text-primary);
+  font-family: 'Inter', 'Manrope', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
   line-height: 1.6;
   min-height: 100dvh;
   transition: background-color var(--transition-slow), color var(--transition-base);
 }
 
-/* ─── Scrollbar Styling ─────────────────────────────────────────────────── */
+/* ─── Scrollbar ─────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-surface-300);
+  background: var(--surface-300);
   border-radius: 999px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-brand-muted);
-}
+::-webkit-scrollbar-thumb:hover { background: var(--brand-indigo); }
 
 /* ─── Selection ─────────────────────────────────────────────────────────── */
 ::selection {
-  background: var(--color-brand-subtle);
-  color: var(--color-text-primary);
+  background: var(--brand-indigo-subtle);
+  color: var(--text);
 }
 
 /* ─── Focus Ring ────────────────────────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid var(--color-brand);
+  outline: 2px solid var(--brand-indigo);
   outline-offset: 2px;
   border-radius: var(--radius);
 }
 
-/* ─── Typography utilities ──────────────────────────────────────────────── */
-.text-gain  { color: var(--color-gain-text); }
-.text-loss  { color: var(--color-loss-text); }
-.text-brand { color: var(--color-brand); }
+/* ─── Typography Utilities ──────────────────────────────────────────────── */
+.text-gain   { color: var(--gain-text); }
+.text-loss   { color: var(--loss-text); }
+.text-brand  { color: var(--brand-indigo); }
+.text-cyan   { color: var(--brand-cyan); }
 
-.bg-gain-subtle { background-color: var(--color-gain-subtle); }
-.bg-loss-subtle { background-color: var(--color-loss-subtle); }
+.bg-gain-subtle  { background-color: var(--gain-subtle); }
+.bg-loss-subtle  { background-color: var(--loss-subtle); }
+.bg-brand-subtle { background-color: var(--brand-indigo-subtle); }
 
-/* ─── Number / mono ─────────────────────────────────────────────────────── */
+/* ─── Wordmark split colour ─────────────────────────────────────────────── */
+/* "Tra" uses current text color, "diary" uses brand-cyan in dark / brand-indigo in light */
+.wordmark-diary {
+  color: var(--brand-cyan);
+}
+[data-theme="light"] .wordmark-diary {
+  color: var(--brand-indigo);
+}
+
+/* ─── Number / Mono ─────────────────────────────────────────────────────── */
 .font-num {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-variant-numeric: tabular-nums;
@@ -141,32 +209,61 @@ body {
 
 /* ─── Card base ─────────────────────────────────────────────────────────── */
 .card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
   transition: box-shadow var(--transition-base);
 }
-.card:hover { box-shadow: 0 4px 12px 0 rgba(0,0,0,0.4); }
+.card:hover { box-shadow: 0 4px 16px 0 rgba(0,0,0,0.35); }
 
-/* ─── Sidebar transition ────────────────────────────────────────────────── */
-.sidebar {
-  width: var(--sidebar-width);
-  transition: width var(--transition-slow);
-}
-.sidebar.collapsed {
-  width: var(--sidebar-collapsed);
+/* Light mode card shadow */
+[data-theme="light"] .card:hover {
+  box-shadow: 0 4px 16px 0 rgba(11, 18, 32, 0.08);
 }
 
-/* ─── Shimmer loading skeleton ──────────────────────────────────────────── */
+/* ─── Surface raised (with shadow in light mode) ────────────────────────── */
+.surface-raised {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+[data-theme="light"] .surface-raised {
+  box-shadow: 0 1px 4px 0 rgba(11, 18, 32, 0.06);
+}
+
+/* ─── Skeleton shimmer ──────────────────────────────────────────────────── */
 .skeleton {
   background: linear-gradient(
     90deg,
-    var(--color-surface-200) 25%,
-    var(--color-surface-300) 50%,
-    var(--color-surface-200) 75%
+    var(--surface-200) 25%,
+    var(--surface-300) 50%,
+    var(--surface-200) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 2.5s linear infinite;
   border-radius: var(--radius);
+}
+
+/* ─── Sidebar ───────────────────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-width);
+  transition: width var(--transition-slow);
+}
+.sidebar.collapsed { width: var(--sidebar-collapsed); }
+
+/* ─── Brand Gradient Text ────────────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, var(--brand-indigo), var(--brand-cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Glow helpers ──────────────────────────────────────────────────────── */
+.glow-brand {
+  box-shadow: 0 0 20px 0 rgba(91, 108, 255, 0.25);
+}
+.glow-cyan {
+  box-shadow: 0 0 20px 0 rgba(34, 211, 238, 0.20);
 }
