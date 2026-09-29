@@ -17,6 +17,7 @@ const SignUpPage         = lazy(() => import('@/pages/auth/SignUpPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
 const ResetPasswordPage  = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 const VerifyEmailPage    = lazy(() => import('@/pages/auth/VerifyEmailPage'));
+const DashboardPage      = lazy(() => import('@/pages/app/DashboardPage'));
 const TradesPage         = lazy(() => import('@/pages/app/TradesPage'));
 const TradeDetailPage    = lazy(() => import('@/pages/app/TradeDetailPage'));
 const CalendarPage       = lazy(() => import('@/pages/app/CalendarPage'));
@@ -48,7 +49,7 @@ const AppRouter = () => (
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<AppShell />}>
           <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<PlaceholderPage title="Dashboard" description="Your trading performance at a glance — coming next." />} />
+          <Route path="dashboard" element={<DashboardPage />} />
           <Route path="trades"     element={<TradesPage />} />
           <Route path="trades/:id" element={<TradeDetailPage />} />
           <Route path="calendar"   element={<CalendarPage />} />
