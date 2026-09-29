@@ -34,6 +34,7 @@ import axios from '@/api/axiosInstance';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
+import PasswordStrength from '@/components/ui/PasswordStrength';
 
 // ── Timezone list (common IANA zones) ─────────────────────────────────────────
 const TIMEZONES = [
@@ -76,9 +77,17 @@ const profileSchema = z.object({
   baseCurrency: z.string().length(3),
 });
 
+// Password must have ≥8 chars, uppercase, number, and special char — same rules as signup
+const strongPassword = z
+  .string()
+  .min(8, 'At least 8 characters')
+  .regex(/[A-Z]/, 'At least one uppercase letter')
+  .regex(/\d/, 'At least one number')
+  .regex(/[^a-zA-Z0-9]/, 'At least one special character (!@#$…)');
+
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword:     z.string().min(8, 'At least 8 characters'),
+  newPassword:     strongPassword,
   confirmPassword: z.string(),
 }).refine(d => d.newPassword === d.confirmPassword, {
   message: 'Passwords do not match',
@@ -86,7 +95,7 @@ const changePasswordSchema = z.object({
 });
 
 const setPasswordSchema = z.object({
-  newPassword:     z.string().min(8, 'At least 8 characters'),
+  newPassword:     strongPassword,
   confirmPassword: z.string(),
 }).refine(d => d.newPassword === d.confirmPassword, {
   message: 'Passwords do not match',
@@ -302,9 +311,10 @@ const SecurityTab = () => {
   const hasGoogleAuth = user?.authProviders?.includes('google');
 
   const schema = hasLocalAuth ? changePasswordSchema : setPasswordSchema;
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
   });
+  const newPasswordValue = watch('newPassword', '');
 
   const onSubmit = async (data) => {
     try {
@@ -412,6 +422,7 @@ const SecurityTab = () => {
                 {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
+            <PasswordStrength password={newPasswordValue} />
           </Field>
           <Field label="Confirm new password" error={errors.confirmPassword?.message}>
             <Input
