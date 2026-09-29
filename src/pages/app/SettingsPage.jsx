@@ -28,7 +28,7 @@ import {
   Link2,
 } from 'lucide-react';
 import { selectCurrentUser, updateUser } from '@/features/auth/authSlice';
-import { toggleTheme, selectTheme } from '@/features/ui/uiSlice';
+import { setTheme, selectTheme } from '@/features/ui/uiSlice';
 import { toastSuccess, toastError } from '@/features/ui/toastSlice';
 import axios from '@/api/axiosInstance';
 import Button from '@/components/ui/Button';
@@ -150,12 +150,20 @@ const ProfileTab = () => {
 
   const onSubmit = async (data) => {
     try {
-      const { data: res } = await axios.patch('/users/me', data);
+      // Include current theme so Save Changes always persists it too
+      const { data: res } = await axios.patch('/users/me', { ...data, theme });
       dispatch(updateUser(res.data));
       dispatch(toastSuccess('Profile saved.'));
     } catch (err) {
       dispatch(toastError(err.response?.data?.error?.message ?? 'Failed to save.'));
     }
+  };
+
+  // Toggle theme locally + persist to DB immediately (fire-and-forget)
+  const handleThemeToggle = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    dispatch(setTheme(newTheme));
+    axios.patch('/users/me', { theme: newTheme }).catch(() => {});
   };
 
   const handleAvatarUpload = async (e) => {
@@ -274,7 +282,7 @@ const ProfileTab = () => {
           </div>
           <button
             type="button"
-            onClick={() => dispatch(toggleTheme())}
+            onClick={handleThemeToggle}
             className={[
               'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
               theme === 'dark' ? 'bg-[var(--brand-indigo)]' : 'bg-[var(--surface-300)]',
