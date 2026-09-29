@@ -16,7 +16,7 @@ import { toastSuccess, toastError } from '@/features/ui/toastSlice';
 import Button from '@/components/ui/Button';
 import PasswordStrength from '@/components/ui/PasswordStrength';
 
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$/;
 
 const schema = z
   .object({
@@ -24,7 +24,7 @@ const schema = z
     email: z.string().email('Enter a valid email'),
     password: z
       .string()
-      .regex(PASSWORD_REGEX, 'Min 8 chars with uppercase, lowercase, and number'),
+      .regex(PASSWORD_REGEX, 'Min 8 chars with uppercase, lowercase, number, and special character (!@#$…)'),
     confirmPassword: z.string(),
   })
   .refine((d) => d.password === d.confirmPassword, {
