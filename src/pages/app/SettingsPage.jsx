@@ -27,7 +27,7 @@ import {
   EyeOff,
   Link2,
 } from 'lucide-react';
-import { selectCurrentUser, setCredentials } from '@/features/auth/authSlice';
+import { selectCurrentUser, updateUser } from '@/features/auth/authSlice';
 import { toggleTheme, selectTheme } from '@/features/ui/uiSlice';
 import { toastSuccess, toastError } from '@/features/ui/toastSlice';
 import axios from '@/api/axiosInstance';
@@ -142,7 +142,7 @@ const ProfileTab = () => {
   const onSubmit = async (data) => {
     try {
       const { data: res } = await axios.patch('/users/me', data);
-      dispatch(setCredentials({ user: res.data, accessToken: null }));
+      dispatch(updateUser(res.data));
       dispatch(toastSuccess('Profile saved.'));
     } catch (err) {
       dispatch(toastError(err.response?.data?.error?.message ?? 'Failed to save.'));
@@ -159,7 +159,7 @@ const ProfileTab = () => {
       const { data: res } = await axios.post('/uploads/avatar', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      dispatch(setCredentials({ user: res.data, accessToken: null }));
+      dispatch(updateUser(res.data));
       dispatch(toastSuccess('Avatar updated.'));
     } catch {
       dispatch(toastError('Avatar upload failed.'));
@@ -568,7 +568,7 @@ const AccountsTab = () => {
 
       {/* Add/Edit account modal */}
       <Modal
-        isOpen={showModal}
+        open={showModal}
         onClose={() => setShowModal(false)}
         title={editing ? 'Edit Account' : 'Add Account'}
       >
@@ -698,7 +698,7 @@ const DataTab = () => {
 
       {/* Delete confirmation modal */}
       <Modal
-        isOpen={showDeleteModal}
+        open={showDeleteModal}
         onClose={() => { setShowDeleteModal(false); setDeleteConfirm(''); }}
         title="Delete Account"
       >
