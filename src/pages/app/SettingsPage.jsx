@@ -5,6 +5,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -27,7 +28,7 @@ import {
   EyeOff,
   Link2,
 } from 'lucide-react';
-import { selectCurrentUser, updateUser } from '@/features/auth/authSlice';
+import { selectCurrentUser, updateUser, logout as logoutAction } from '@/features/auth/authSlice';
 import { setTheme, selectTheme } from '@/features/ui/uiSlice';
 import { toastSuccess, toastError } from '@/features/ui/toastSlice';
 import axios from '@/api/axiosInstance';
@@ -310,6 +311,7 @@ const ProfileTab = () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 const SecurityTab = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const user     = useSelector(selectCurrentUser);
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew]         = useState(false);
@@ -342,10 +344,10 @@ const SecurityTab = () => {
     setLogoutLoading(true);
     try {
       await axios.post('/auth/logout-all');
-      dispatch(toastSuccess('Signed out of all devices.'));
+      dispatch(logoutAction());           // clear Redux auth state
+      navigate('/signin', { replace: true }); // redirect — session is gone
     } catch {
       dispatch(toastError('Could not sign out all devices. Try again.'));
-    } finally {
       setLogoutLoading(false);
     }
   };
