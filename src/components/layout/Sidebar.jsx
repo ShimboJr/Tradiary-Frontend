@@ -11,22 +11,45 @@ import {
   LayoutDashboard,
   BookOpen,
   CalendarDays,
-  BarChart3,
   BookMarked,
   Settings,
   ChevronLeft,
   ChevronRight,
   TrendingUp,
+  NotebookPen,
+  Target,
+  AlertOctagon,
+  Eye,
+  Calculator,
 } from 'lucide-react';
 import { toggleSidebar, selectSidebarCollapsed } from '@/features/ui/uiSlice';
 
-const NAV_ITEMS = [
-  { to: '/app/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
-  { to: '/app/trades',     label: 'Trades',      icon: BookOpen },
-  { to: '/app/calendar',   label: 'Calendar',    icon: CalendarDays },
-  { to: '/app/analytics',  label: 'Analytics',   icon: BarChart3 },
-  { to: '/app/playbooks',  label: 'Playbooks',   icon: BookMarked },
-  { to: '/app/settings',   label: 'Settings',    icon: Settings },
+const NAV_SECTIONS = [
+  {
+    label: 'Trading',
+    items: [
+      { to: '/app/dashboard',  label: 'Dashboard',   icon: LayoutDashboard },
+      { to: '/app/trades',     label: 'Trades',       icon: BookOpen },
+      { to: '/app/calendar',   label: 'Calendar',     icon: CalendarDays },
+      { to: '/app/playbooks',  label: 'Playbooks',    icon: BookMarked },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      { to: '/app/journal',    label: 'Journal',      icon: NotebookPen },
+      { to: '/app/goals',      label: 'Goals',        icon: Target },
+      { to: '/app/mistakes',   label: 'Mistakes',     icon: AlertOctagon },
+      { to: '/app/watchlist',  label: 'Watchlist',    icon: Eye },
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
+      { to: '/app/tools/risk-calculator', label: 'Risk Calc', icon: Calculator },
+      { to: '/app/settings',              label: 'Settings',   icon: Settings },
+    ],
+  },
 ];
 
 const NavItem = ({ to, label, icon: Icon, collapsed }) => (
@@ -35,7 +58,7 @@ const NavItem = ({ to, label, icon: Icon, collapsed }) => (
     title={collapsed ? label : undefined}
     className={({ isActive }) =>
       [
-        'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium',
+        'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium',
         'transition-all duration-[150ms]',
         isActive
           ? 'bg-[var(--color-brand-subtle)] text-[var(--color-brand)]'
@@ -44,7 +67,7 @@ const NavItem = ({ to, label, icon: Icon, collapsed }) => (
     }
   >
     <Icon
-      size={18}
+      size={17}
       className="shrink-0 transition-transform duration-150 group-hover:scale-110"
     />
     {!collapsed && (
@@ -54,7 +77,7 @@ const NavItem = ({ to, label, icon: Icon, collapsed }) => (
 );
 
 const Sidebar = () => {
-  const dispatch = useDispatch();
+  const dispatch  = useDispatch();
   const collapsed = useSelector(selectSidebarCollapsed);
 
   return (
@@ -81,10 +104,21 @@ const Sidebar = () => {
       </div>
 
       {/* ── Navigation ── */}
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-4">
-        <div className="flex flex-col gap-0.5">
-          {NAV_ITEMS.map((item) => (
-            <NavItem key={item.to} {...item} collapsed={collapsed} />
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-3">
+        <div className="flex flex-col gap-4">
+          {NAV_SECTIONS.map(section => (
+            <div key={section.label}>
+              {!collapsed && (
+                <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
+                  {section.label}
+                </p>
+              )}
+              <div className="flex flex-col gap-0.5">
+                {section.items.map(item => (
+                  <NavItem key={item.to} {...item} collapsed={collapsed} />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </nav>
@@ -96,7 +130,7 @@ const Sidebar = () => {
           onClick={() => dispatch(toggleSidebar())}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           className={[
-            'flex w-full items-center rounded-lg px-3 py-2.5 text-sm',
+            'flex w-full items-center rounded-lg px-3 py-2 text-sm',
             'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-100)] hover:text-[var(--color-text-primary)]',
             'transition-all duration-150',
             collapsed ? 'justify-center' : 'gap-3',

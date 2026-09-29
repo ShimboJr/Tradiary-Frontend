@@ -1,26 +1,34 @@
 /**
- * routes/AppRouter.jsx  (updated — trade pages wired in)
+ * routes/AppRouter.jsx  — all pages registered
  */
 
 import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import AppShell from '@/components/layout/AppShell';
-import PublicLayout from '@/components/layout/PublicLayout';
-import AuthLayout from '@/components/layout/AuthLayout';
+import AppShell      from '@/components/layout/AppShell';
+import PublicLayout  from '@/components/layout/PublicLayout';
+import AuthLayout    from '@/components/layout/AuthLayout';
 import ProtectedRoute from './ProtectedRoute';
 import PlaceholderPage from '@/pages/PlaceholderPage';
 
 // ── Lazy-loaded pages ─────────────────────────────────────────────────────────
-const LandingPage        = lazy(() => import('@/pages/LandingPage'));
-const SignInPage         = lazy(() => import('@/pages/auth/SignInPage'));
-const SignUpPage         = lazy(() => import('@/pages/auth/SignUpPage'));
-const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
-const ResetPasswordPage  = lazy(() => import('@/pages/auth/ResetPasswordPage'));
-const VerifyEmailPage    = lazy(() => import('@/pages/auth/VerifyEmailPage'));
-const DashboardPage      = lazy(() => import('@/pages/app/DashboardPage'));
-const TradesPage         = lazy(() => import('@/pages/app/TradesPage'));
-const TradeDetailPage    = lazy(() => import('@/pages/app/TradeDetailPage'));
-const CalendarPage       = lazy(() => import('@/pages/app/CalendarPage'));
+const LandingPage          = lazy(() => import('@/pages/LandingPage'));
+const SignInPage           = lazy(() => import('@/pages/auth/SignInPage'));
+const SignUpPage           = lazy(() => import('@/pages/auth/SignUpPage'));
+const ForgotPasswordPage   = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage    = lazy(() => import('@/pages/auth/ResetPasswordPage'));
+const VerifyEmailPage      = lazy(() => import('@/pages/auth/VerifyEmailPage'));
+// App
+const DashboardPage        = lazy(() => import('@/pages/app/DashboardPage'));
+const TradesPage           = lazy(() => import('@/pages/app/TradesPage'));
+const TradeDetailPage      = lazy(() => import('@/pages/app/TradeDetailPage'));
+const CalendarPage         = lazy(() => import('@/pages/app/CalendarPage'));
+const PlaybooksPage        = lazy(() => import('@/pages/app/PlaybooksPage'));
+const StrategyDetailPage   = lazy(() => import('@/pages/app/StrategyDetailPage'));
+const JournalPage          = lazy(() => import('@/pages/app/JournalPage'));
+const GoalsPage            = lazy(() => import('@/pages/app/GoalsPage'));
+const MistakesPage         = lazy(() => import('@/pages/app/MistakesPage'));
+const WatchlistPage        = lazy(() => import('@/pages/app/WatchlistPage'));
+const RiskCalculatorPage   = lazy(() => import('@/pages/app/RiskCalculatorPage'));
 
 const PageLoader = () => (
   <div className="flex h-64 items-center justify-center">
@@ -49,13 +57,23 @@ const AppRouter = () => (
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<AppShell />}>
           <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="trades"     element={<TradesPage />} />
-          <Route path="trades/:id" element={<TradeDetailPage />} />
-          <Route path="calendar"   element={<CalendarPage />} />
-          <Route path="analytics"  element={<PlaceholderPage title="Analytics" description="Deep performance analytics — coming soon." />} />
-          <Route path="playbooks"  element={<PlaceholderPage title="Playbooks" description="Define and track your trading setups — coming soon." />} />
-          <Route path="settings"   element={<PlaceholderPage title="Settings"  description="Account and preferences — coming soon." />} />
+          {/* Trading */}
+          <Route path="dashboard"   element={<DashboardPage />} />
+          <Route path="trades"      element={<TradesPage />} />
+          <Route path="trades/:id"  element={<TradeDetailPage />} />
+          <Route path="calendar"    element={<CalendarPage />} />
+          {/* Playbooks */}
+          <Route path="playbooks"      element={<PlaybooksPage />} />
+          <Route path="playbooks/:id"  element={<StrategyDetailPage />} />
+          {/* Insights */}
+          <Route path="journal"     element={<JournalPage />} />
+          <Route path="goals"       element={<GoalsPage />} />
+          <Route path="mistakes"    element={<MistakesPage />} />
+          <Route path="watchlist"   element={<WatchlistPage />} />
+          {/* Tools */}
+          <Route path="tools/risk-calculator" element={<RiskCalculatorPage />} />
+          {/* Settings (placeholder for now) */}
+          <Route path="settings"    element={<PlaceholderPage title="Settings" description="Account and preferences — coming soon." />} />
         </Route>
       </Route>
 

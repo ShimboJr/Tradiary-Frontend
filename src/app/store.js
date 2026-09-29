@@ -3,21 +3,25 @@
  */
 
 import { configureStore } from '@reduxjs/toolkit';
-import authReducer      from '@/features/auth/authSlice';
-import uiReducer        from '@/features/ui/uiSlice';
-import toastReducer     from '@/features/ui/toastSlice';
-import tradesReducer    from '@/features/trades/tradesSlice';
-import accountsReducer  from '@/features/accounts/accountsSlice';
-import analyticsReducer from '@/features/analytics/analyticsSlice';
+import authReducer        from '@/features/auth/authSlice';
+import uiReducer          from '@/features/ui/uiSlice';
+import toastReducer       from '@/features/ui/toastSlice';
+import tradesReducer      from '@/features/trades/tradesSlice';
+import accountsReducer    from '@/features/accounts/accountsSlice';
+import analyticsReducer   from '@/features/analytics/analyticsSlice';
+import strategiesReducer  from '@/features/strategies/strategiesSlice';
+import goalsReducer       from '@/features/goals/goalsSlice';
 
 export const store = configureStore({
   reducer: {
-    auth:      authReducer,
-    ui:        uiReducer,
-    toast:     toastReducer,
-    trades:    tradesReducer,
-    accounts:  accountsReducer,
-    analytics: analyticsReducer,
+    auth:       authReducer,
+    ui:         uiReducer,
+    toast:      toastReducer,
+    trades:     tradesReducer,
+    accounts:   accountsReducer,
+    analytics:  analyticsReducer,
+    strategies: strategiesReducer,
+    goals:      goalsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: { ignoredActions: [] } }),
