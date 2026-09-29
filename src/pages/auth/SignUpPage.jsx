@@ -203,8 +203,9 @@ const SignUpPage = () => {
 
       <p className="mt-6 text-center text-xs text-[var(--color-text-muted)]">
         By signing up you agree to our{' '}
-        <span className="text-[var(--color-brand)]">Terms</span> and{' '}
-        <span className="text-[var(--color-brand)]">Privacy Policy</span>.
+        <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand)] hover:underline">Terms</Link>
+        {' '}and{' '}
+        <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand)] hover:underline">Privacy Policy</Link>.
       </p>
     </div>
   );
