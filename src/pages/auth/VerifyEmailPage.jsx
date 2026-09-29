@@ -3,7 +3,7 @@
  * Auto-calls the verify endpoint on mount with the token from the URL.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { apiVerifyEmail } from '@/api/auth';
@@ -15,8 +15,14 @@ const VerifyEmailPage = () => {
   const dispatch = useDispatch();
   const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
   const [message, setMessage] = useState('');
+  // Guard against React StrictMode double-invoking the effect, which would
+  // consume the one-time token on the first call and fail on the second.
+  const hasVerified = useRef(false);
 
   useEffect(() => {
+    if (hasVerified.current) return;
+    hasVerified.current = true;
+
     const verify = async () => {
       try {
         const res = await apiVerifyEmail(token);
