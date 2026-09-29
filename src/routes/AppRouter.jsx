@@ -1,6 +1,5 @@
 /**
- * routes/AppRouter.jsx  (full replacement)
- * All routes: public landing, auth pages (in AuthLayout), protected app pages.
+ * routes/AppRouter.jsx  (updated — trade pages wired in)
  */
 
 import React, { lazy, Suspense } from 'react';
@@ -18,6 +17,9 @@ const SignUpPage         = lazy(() => import('@/pages/auth/SignUpPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
 const ResetPasswordPage  = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 const VerifyEmailPage    = lazy(() => import('@/pages/auth/VerifyEmailPage'));
+const TradesPage         = lazy(() => import('@/pages/app/TradesPage'));
+const TradeDetailPage    = lazy(() => import('@/pages/app/TradeDetailPage'));
+const CalendarPage       = lazy(() => import('@/pages/app/CalendarPage'));
 
 const PageLoader = () => (
   <div className="flex h-64 items-center justify-center">
@@ -35,9 +37,9 @@ const AppRouter = () => (
 
       {/* ── Auth pages (split-screen layout) ── */}
       <Route element={<AuthLayout />}>
-        <Route path="/signin"          element={<SignInPage />} />
-        <Route path="/signup"          element={<SignUpPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/signin"                element={<SignInPage />} />
+        <Route path="/signup"                element={<SignUpPage />} />
+        <Route path="/forgot-password"       element={<ForgotPasswordPage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
         <Route path="/verify-email/:token"   element={<VerifyEmailPage />} />
       </Route>
@@ -47,11 +49,12 @@ const AppRouter = () => (
         <Route path="/app" element={<AppShell />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<PlaceholderPage title="Dashboard" description="Your trading performance at a glance — coming next." />} />
-          <Route path="trades"    element={<PlaceholderPage title="Trades"    description="Log and review all your trades — coming soon." />} />
-          <Route path="calendar"  element={<PlaceholderPage title="Calendar"  description="Daily P&L calendar view — coming soon." />} />
-          <Route path="analytics" element={<PlaceholderPage title="Analytics" description="Deep performance analytics — coming soon." />} />
-          <Route path="playbooks" element={<PlaceholderPage title="Playbooks" description="Define and track your trading setups — coming soon." />} />
-          <Route path="settings"  element={<PlaceholderPage title="Settings"  description="Account and preferences — coming soon." />} />
+          <Route path="trades"     element={<TradesPage />} />
+          <Route path="trades/:id" element={<TradeDetailPage />} />
+          <Route path="calendar"   element={<CalendarPage />} />
+          <Route path="analytics"  element={<PlaceholderPage title="Analytics" description="Deep performance analytics — coming soon." />} />
+          <Route path="playbooks"  element={<PlaceholderPage title="Playbooks" description="Define and track your trading setups — coming soon." />} />
+          <Route path="settings"   element={<PlaceholderPage title="Settings"  description="Account and preferences — coming soon." />} />
         </Route>
       </Route>
 
