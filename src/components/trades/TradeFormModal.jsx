@@ -56,6 +56,16 @@ const STEPS = ['Details', 'Risk & Result', 'Strategy & Tags', 'Screenshots', 'No
 const EMOTIONS = ['confident','fearful','fomo','revenge','disciplined','neutral'];
 const GRADES   = ['A','B','C','D','F'];
 
+// Maps each form field to the step index where it lives — used by onValidationError
+// to jump directly to the first step that has an error instead of silently doing nothing.
+const FIELD_STEP_MAP = {
+  accountId: 0, symbol: 0, assetClass: 0, direction: 0, status: 0,
+  entryDate: 0, exitDate: 0, entryPrice: 0, exitPrice: 0, quantity: 0, fees: 0,
+  stopLoss: 1, takeProfit: 1,
+  emotion: 2, executionGrade: 2, tags: 2,
+  notes: 4,
+};
+
 // ─── Live P&L calculator ──────────────────────────────────────────────────────
 
 function calcLivePnl(values) {
@@ -189,8 +199,33 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
       if (addAnotherRef.current) { reset(); setStep(0); setScreenshots([]); }
       else onClose();
     } catch (err) {
-      dispatch(addToast({ message: err || 'Failed to save trade.', type: 'error' }));
+      dispatch(addToast({ message: typeof err === 'string' ? err : 'Failed to save trade.', type: 'error' }));
     }
+  };
+
+  // Called by react-hook-form when validation fails — navigates to the first step
+  // that contains an error so the user can see what needs to be fixed.
+  const onValidationError = (errs) => {
+    const errorFields = Object.keys(errs);
+    const steps = errorFields.map(f => FIELD_STEP_MAP[f] ?? 0);
+    const firstStep = Math.min(...steps);
+    setStep(firstStep);
+    // Build a human-readable error message
+    const labels = {
+      accountId: 'Account', symbol: 'Symbol', entryDate: 'Entry Date',
+      entryPrice: 'Entry Price', exitPrice: 'Exit Price', exitDate: 'Exit Date',
+      quantity: 'Quantity',
+    };
+    const missing = errorFields
+      .map(f => labels[f])
+      .filter(Boolean)
+      .join(', ');
+    dispatch(addToast({
+      message: missing
+        ? `Please fill in: ${missing}`
+        : 'Please complete all required fields before saving.',
+      type: 'error',
+    }));
   };
 
   // ── Step components ────────────────────────────────────────────────────────
@@ -490,7 +525,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
         ))}
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <form onSubmit={handleSubmit(onSubmit, onValidationError)} noValidate>
         <div className="min-h-[320px]">
           {stepComponents[step]}
         </div>
