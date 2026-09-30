@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
   Plus, Download, Upload, Trash2, Tag, Search,
@@ -144,8 +144,9 @@ const COLS = [
 ];
 
 export default function TradesPage() {
-  const dispatch    = useDispatch();
-  const navigate    = useNavigate();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const trades     = useSelector(selectTrades);
@@ -188,6 +189,17 @@ export default function TradesPage() {
   // Load accounts once
   useEffect(() => {
     if (accounts.length === 0) dispatch(fetchAccounts());
+  }, []);
+
+  // Handle duplicate-trade navigation state from TradeDetailPage.
+  // Strip server-generated fields so TradeFormModal opens in "new trade" mode.
+  useEffect(() => {
+    const dup = location.state?.duplicate;
+    if (!dup) return;
+    const { _id, pnl, rMultiple, createdAt, updatedAt, __v, userId, ...rest } = dup;
+    setEditTrade(rest);   // initialData without _id → TradeFormModal treats as new trade
+    setShowForm(true);
+    window.history.replaceState({}, ''); // clear state so refresh doesn't re-open
   }, []);
 
   const toggleSort = (key) => {

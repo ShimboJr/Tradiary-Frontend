@@ -415,7 +415,9 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
   const addAnotherRef = useRef(false); // ref so onClick writes sync before onSubmit reads
   const [screenshots, setScreenshots] = useState(initialData?.screenshots || []);
   const [uploading, setUploading] = useState(false);
-  const isEdit = !!initialData;
+  // isEdit = true only when initialData has an _id (real edit).
+  // Duplicate mode: initialData has trade fields but no _id → treated as new trade.
+  const isEdit = !!(initialData?._id);
 
   const {
     register, handleSubmit, control, watch, setValue, reset,
