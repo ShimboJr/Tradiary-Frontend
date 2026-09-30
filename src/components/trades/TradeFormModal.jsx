@@ -453,10 +453,47 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
       },
   });
 
-  // Reset state when modal closes
+  // Sync form state whenever the modal opens or initialData changes.
+  // react-hook-form only reads defaultValues once on mount, so we must call
+  // reset() explicitly each time we want to hydrate the form with new data.
   useEffect(() => {
-    if (!open) { reset(); setStep(0); setScreenshots(initialData?.screenshots || []); }
-  }, [open]);
+    if (open) {
+      const vals = initialData
+        ? {
+            ...initialData,
+            accountId: initialData.accountId?._id || initialData.accountId || '',
+            entryDate: initialData.entryDate?.slice(0, 16) || '',
+            exitDate: initialData.exitDate?.slice(0, 16) || '',
+            tags: initialData.tags || [],
+          }
+        : {
+            accountId: defaultAccountId || accounts[0]?._id || '',
+            symbol: '',
+            assetClass: 'stock',
+            direction: 'long',
+            status: 'open',
+            entryDate: new Date().toISOString().slice(0, 16),
+            exitDate: '',
+            entryPrice: '',
+            exitPrice: '',
+            quantity: '',
+            stopLoss: '',
+            takeProfit: '',
+            fees: 0,
+            tags: [],
+            emotion: '',
+            executionGrade: '',
+            notes: '',
+          };
+      reset(vals);
+      setScreenshots(initialData?.screenshots || []);
+      setStep(0);
+    } else {
+      reset();
+      setStep(0);
+      setScreenshots([]);
+    }
+  }, [open, initialData]);
 
   const watchedValues = watch(['direction', 'entryPrice', 'exitPrice', 'quantity', 'fees', 'stopLoss', 'status']);
   const statusVal = watch('status');
