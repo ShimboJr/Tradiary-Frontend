@@ -55,6 +55,7 @@ const strategiesSlice = createSlice({
       .addCase(deleteStrategy.fulfilled,  (s, a) => { s.items = s.items.filter(x => x._id !== a.payload); })
       .addCase(fetchStrategy.pending,     (s)    => { s.detailStatus = 'loading'; })
       .addCase(fetchStrategy.fulfilled,   (s, a) => { s.selected = a.payload; s.detailStatus = 'succeeded'; })
+      .addCase(fetchStrategy.rejected,    (s, a) => { s.detailStatus = 'failed'; s.error = a.payload; })
       .addCase(fetchStrategyTrades.fulfilled, (s, a) => { s.strategyTrades = a.payload; });
   },
 });

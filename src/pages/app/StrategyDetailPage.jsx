@@ -133,7 +133,7 @@ export default function StrategyDetailPage() {
             <p className="text-sm text-[var(--color-text-muted)] italic">No rules defined for this strategy.</p>
           ) : (
             <div className="space-y-2">
-              {strategy.rules.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((r, i) => (
+              {[...strategy.rules].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((r, i) => (
                 <div key={r._id || i} className="flex items-start gap-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-100)] px-3 py-2.5">
                   <span className="text-xs font-bold text-[var(--color-text-muted)] w-4 shrink-0 mt-0.5">{i + 1}.</span>
                   <span className="text-sm text-[var(--color-text-secondary)]">{r.text}</span>
