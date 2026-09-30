@@ -1,9 +1,12 @@
 /**
  * components/trades/TradeFormModal.jsx
  * Multi-section trade entry / edit modal.
- * Sections: Details → Risk & Result → Strategy & Tags → Screenshots → Notes
+ *
+ * IMPORTANT: All step sub-components are defined at MODULE LEVEL (outside TradeFormModal).
+ * Defining them inside the parent function creates new component types on every render,
+ * which causes React to unmount/remount them — losing focus and wiping form field values.
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,8 +17,7 @@ import { apiUploadScreenshot } from '@/api/trades';
 import { addToast } from '@/features/ui/toastSlice';
 import Modal from '@/components/ui/Modal';
 import {
-  TrendingUp, TrendingDown, Upload, X, ChevronRight, ChevronLeft,
-  DollarSign, AlertCircle,
+  TrendingUp, TrendingDown, Upload, X, ChevronRight, ChevronLeft, AlertCircle,
 } from 'lucide-react';
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -23,9 +25,9 @@ import {
 const tradeSchema = z.object({
   accountId:      z.string().min(1, 'Account required'),
   symbol:         z.string().min(1, 'Symbol required').max(20),
-  assetClass:     z.enum(['stock','forex','crypto','futures','options']),
-  direction:      z.enum(['long','short']),
-  status:         z.enum(['open','closed']),
+  assetClass:     z.enum(['stock', 'forex', 'crypto', 'futures', 'options']),
+  direction:      z.enum(['long', 'short']),
+  status:         z.enum(['open', 'closed']),
   entryDate:      z.string().min(1, 'Entry date required'),
   exitDate:       z.string().optional().nullable(),
   entryPrice:     z.coerce.number().positive('Entry price must be positive'),
@@ -44,20 +46,18 @@ const tradeSchema = z.object({
   return true;
 }, { message: 'Exit price and date are required for closed trades', path: ['exitPrice'] });
 
-// ─── Field styles ─────────────────────────────────────────────────────────────
+// ─── Style constants (module-level so all step components can use them) ───────
 
 const inputCls = 'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-100)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[var(--color-brand)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] transition-colors';
 const labelCls = 'block text-xs font-medium text-[var(--color-text-secondary)] mb-1';
 const errCls   = 'mt-1 text-xs text-[var(--color-loss-text)]';
-const sectionTitle = 'text-sm font-semibold text-[var(--color-text-primary)] mb-4';
 
-const STEPS = ['Details', 'Risk & Result', 'Strategy & Tags', 'Screenshots', 'Notes'];
+const STEPS    = ['Details', 'Risk & Result', 'Strategy & Tags', 'Screenshots', 'Notes'];
+const EMOTIONS = ['confident', 'fearful', 'fomo', 'revenge', 'disciplined', 'neutral'];
+const GRADES   = ['A', 'B', 'C', 'D', 'F'];
 
-const EMOTIONS = ['confident','fearful','fomo','revenge','disciplined','neutral'];
-const GRADES   = ['A','B','C','D','F'];
-
-// Maps each form field to the step index where it lives — used by onValidationError
-// to jump directly to the first step that has an error instead of silently doing nothing.
+// Maps each form field to the step index where it lives.
+// Used by onValidationError to jump to the first step with an error.
 const FIELD_STEP_MAP = {
   accountId: 0, symbol: 0, assetClass: 0, direction: 0, status: 0,
   entryDate: 0, exitDate: 0, entryPrice: 0, exitPrice: 0, quantity: 0, fees: 0,
@@ -66,10 +66,9 @@ const FIELD_STEP_MAP = {
   notes: 4,
 };
 
-// ─── Live P&L calculator ──────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function calcLivePnl(values) {
-  const { direction, entryPrice, exitPrice, quantity, fees, stopLoss } = values;
+function calcLivePnl({ direction, entryPrice, exitPrice, quantity, fees, stopLoss }) {
   const ep = Number(entryPrice), xp = Number(exitPrice), qty = Number(quantity), f = Number(fees) || 0;
   if (!ep || !xp || !qty) return { pnl: null, rMultiple: null };
   const raw = direction === 'short' ? (ep - xp) * qty : (xp - ep) * qty;
@@ -110,127 +109,10 @@ function TagInput({ value = [], onChange }) {
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Step 1: Details ──────────────────────────────────────────────────────────
 
-const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = null, onSaved }) => {
-  const dispatch   = useDispatch();
-  const accounts   = useSelector(selectAccounts);
-  const [step, setStep]           = useState(0);
-  const addAnotherRef = useRef(false); // use ref so onClick writes sync, onSubmit reads correct value
-  const [screenshots, setScreenshots] = useState(initialData?.screenshots || []);
-  const [uploading, setUploading] = useState(false);
-  const isEdit = !!initialData;
-
-  const { register, handleSubmit, control, watch, setValue, reset, formState: { errors, isSubmitting } } = useForm({
-    resolver: zodResolver(tradeSchema),
-    defaultValues: initialData
-      ? {
-          ...initialData,
-          accountId: initialData.accountId?._id || initialData.accountId || '',
-          entryDate: initialData.entryDate?.slice(0, 16) || '',
-          exitDate:  initialData.exitDate?.slice(0, 16)  || '',
-          tags: initialData.tags || [],
-        }
-      : {
-          accountId:   defaultAccountId || accounts[0]?._id || '',
-          symbol:      '',
-          assetClass:  'stock',
-          direction:   'long',
-          status:      'open',
-          entryDate:   new Date().toISOString().slice(0, 16),
-          exitDate:    '',
-          entryPrice:  '',
-          exitPrice:   '',
-          quantity:    '',
-          stopLoss:    '',
-          takeProfit:  '',
-          fees:        0,
-          tags:        [],
-          emotion:     '',
-          executionGrade: '',
-          notes:       '',
-        },
-  });
-
-  // Reset when modal closes/opens
-  useEffect(() => {
-    if (!open) { reset(); setStep(0); setScreenshots(initialData?.screenshots || []); }
-  }, [open]);
-
-  const watchedValues = watch(['direction','entryPrice','exitPrice','quantity','fees','stopLoss','status']);
-  const statusVal     = watch('status');
-  const { pnl, rMultiple } = calcLivePnl({
-    direction: watchedValues[0], entryPrice: watchedValues[1],
-    exitPrice:  watchedValues[2], quantity:   watchedValues[3],
-    fees:       watchedValues[4], stopLoss:   watchedValues[5],
-  });
-
-  // Screenshot upload
-  const handleScreenshotUpload = async (files) => {
-    setUploading(true);
-    try {
-      for (const file of Array.from(files)) {
-        const fd = new FormData();
-        fd.append('screenshot', file);
-        const res = await apiUploadScreenshot(fd);
-        setScreenshots(prev => [...prev, { url: res.data.data.url, caption: '' }]);
-      }
-    } catch {
-      dispatch(addToast({ message: 'Screenshot upload failed.', type: 'error' }));
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const onSubmit = async (data) => {
-    const payload = { ...data, screenshots };
-    // Remove empty exit fields for open trades
-    if (data.status === 'open') { payload.exitPrice = null; payload.exitDate = null; }
-
-    try {
-      if (isEdit) {
-        await dispatch(updateTrade({ id: initialData._id, data: payload })).unwrap();
-        dispatch(addToast({ message: 'Trade updated.', type: 'success' }));
-      } else {
-        await dispatch(createTrade(payload)).unwrap();
-        dispatch(addToast({ message: 'Trade logged!', type: 'success' }));
-      }
-      onSaved?.();
-      if (addAnotherRef.current) { reset(); setStep(0); setScreenshots([]); }
-      else onClose();
-    } catch (err) {
-      dispatch(addToast({ message: typeof err === 'string' ? err : 'Failed to save trade.', type: 'error' }));
-    }
-  };
-
-  // Called by react-hook-form when validation fails — navigates to the first step
-  // that contains an error so the user can see what needs to be fixed.
-  const onValidationError = (errs) => {
-    const errorFields = Object.keys(errs);
-    const steps = errorFields.map(f => FIELD_STEP_MAP[f] ?? 0);
-    const firstStep = Math.min(...steps);
-    setStep(firstStep);
-    // Build a human-readable error message
-    const labels = {
-      accountId: 'Account', symbol: 'Symbol', entryDate: 'Entry Date',
-      entryPrice: 'Entry Price', exitPrice: 'Exit Price', exitDate: 'Exit Date',
-      quantity: 'Quantity',
-    };
-    const missing = errorFields
-      .map(f => labels[f])
-      .filter(Boolean)
-      .join(', ');
-    dispatch(addToast({
-      message: missing
-        ? `Please fill in: ${missing}`
-        : 'Please complete all required fields before saving.',
-      type: 'error',
-    }));
-  };
-
-  // ── Step components ────────────────────────────────────────────────────────
-
-  const StepDetails = () => (
+function StepDetails({ register, watch, setValue, errors, statusVal, accounts }) {
+  return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {/* Account */}
       <div className="sm:col-span-2">
@@ -244,8 +126,12 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
       {/* Symbol */}
       <div>
         <label className={labelCls}>Symbol *</label>
-        <input className={`${inputCls} uppercase`} placeholder="AAPL" {...register('symbol')}
-          onChange={e => setValue('symbol', e.target.value.toUpperCase())} />
+        <input
+          className={`${inputCls} uppercase`}
+          placeholder="AAPL"
+          {...register('symbol')}
+          onChange={e => setValue('symbol', e.target.value.toUpperCase())}
+        />
         {errors.symbol && <p className={errCls}>{errors.symbol.message}</p>}
       </div>
 
@@ -253,7 +139,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
       <div>
         <label className={labelCls}>Asset Class *</label>
         <select className={inputCls} {...register('assetClass')}>
-          {['stock','forex','crypto','futures','options'].map(v => (
+          {['stock', 'forex', 'crypto', 'futures', 'options'].map(v => (
             <option key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</option>
           ))}
         </select>
@@ -263,7 +149,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
       <div>
         <label className={labelCls}>Direction *</label>
         <div className="flex gap-2">
-          {['long','short'].map(d => (
+          {['long', 'short'].map(d => (
             <button key={d} type="button"
               onClick={() => setValue('direction', d)}
               className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium transition-colors border
@@ -284,7 +170,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
       <div>
         <label className={labelCls}>Status *</label>
         <div className="flex gap-2">
-          {['open','closed'].map(s => (
+          {['open', 'closed'].map(s => (
             <button key={s} type="button"
               onClick={() => setValue('status', s)}
               className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors border
@@ -300,15 +186,15 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
 
       {/* Entry date */}
       <div>
-        <label className={labelCls}>Entry Date & Time *</label>
+        <label className={labelCls}>Entry Date &amp; Time *</label>
         <input type="datetime-local" className={inputCls} {...register('entryDate')} />
         {errors.entryDate && <p className={errCls}>{errors.entryDate.message}</p>}
       </div>
 
-      {/* Exit date (only if closed) */}
+      {/* Exit date — closed only */}
       {statusVal === 'closed' && (
         <div>
-          <label className={labelCls}>Exit Date & Time *</label>
+          <label className={labelCls}>Exit Date &amp; Time *</label>
           <input type="datetime-local" className={inputCls} {...register('exitDate')} />
         </div>
       )}
@@ -320,7 +206,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
         {errors.entryPrice && <p className={errCls}>{errors.entryPrice.message}</p>}
       </div>
 
-      {/* Exit price (only if closed) */}
+      {/* Exit price — closed only */}
       {statusVal === 'closed' && (
         <div>
           <label className={labelCls}>Exit Price *</label>
@@ -347,8 +233,12 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
       </div>
     </div>
   );
+}
 
-  const StepRisk = () => (
+// ─── Step 2: Risk & Result ────────────────────────────────────────────────────
+
+function StepRisk({ register, watch, pnl, rMultiple }) {
+  return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -361,12 +251,12 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
         </div>
       </div>
 
-      {/* Live computed display */}
+      {/* Live P&L card */}
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-100)] p-4 space-y-3">
         <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Live Calculation</p>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-xs text-[var(--color-text-muted)]">Projected P&L</p>
+            <p className="text-xs text-[var(--color-text-muted)]">Projected P&amp;L</p>
             <p className={`text-xl font-bold font-num ${pnl == null ? 'text-[var(--color-text-muted)]' : pnl >= 0 ? 'text-[var(--color-gain-text)]' : 'text-[var(--color-loss-text)]'}`}>
               {pnl == null ? '—' : `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}`}
             </p>
@@ -378,12 +268,20 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
             </p>
           </div>
         </div>
-        {!watch('stopLoss') && <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-1"><AlertCircle size={12} /> Set stop loss to see R-multiple</p>}
+        {!watch('stopLoss') && (
+          <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-1">
+            <AlertCircle size={12} /> Set stop loss to see R-multiple
+          </p>
+        )}
       </div>
     </div>
   );
+}
 
-  const StepStrategy = () => (
+// ─── Step 3: Strategy & Tags ──────────────────────────────────────────────────
+
+function StepStrategy({ watch, setValue, control }) {
+  return (
     <div className="space-y-4">
       {/* Emotion */}
       <div>
@@ -408,7 +306,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
         <label className={labelCls}>Execution Grade</label>
         <div className="flex gap-2">
           {GRADES.map(g => {
-            const colors = { A:'emerald', B:'blue', C:'yellow', D:'orange', F:'red' };
+            const colors = { A: 'emerald', B: 'blue', C: 'yellow', D: 'orange', F: 'red' };
             const c = colors[g];
             const active = watch('executionGrade') === g;
             return (
@@ -437,10 +335,13 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
       </div>
     </div>
   );
+}
 
-  const StepScreenshots = () => (
+// ─── Step 4: Screenshots ──────────────────────────────────────────────────────
+
+function StepScreenshots({ screenshots, setScreenshots, uploading, handleScreenshotUpload }) {
+  return (
     <div className="space-y-4">
-      {/* Drop zone */}
       <label
         className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-100)] p-8 cursor-pointer hover:border-[var(--color-brand)] transition-colors"
         onDragOver={e => e.preventDefault()}
@@ -454,7 +355,6 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
           onChange={e => handleScreenshotUpload(e.target.files)} />
       </label>
 
-      {/* Previews */}
       {screenshots.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
           {screenshots.map((s, i) => (
@@ -478,8 +378,12 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
       )}
     </div>
   );
+}
 
-  const StepNotes = () => (
+// ─── Step 5: Notes ────────────────────────────────────────────────────────────
+
+function StepNotes({ register }) {
+  return (
     <div>
       <label className={labelCls}>Trade Notes (thesis, execution, lessons)</label>
       <textarea
@@ -490,12 +394,122 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
       <p className="mt-1 text-xs text-[var(--color-text-muted)]">Markdown supported: **bold**, *italic*, - lists</p>
     </div>
   );
+}
 
-  // IMPORTANT: call as plain functions, NOT as JSX elements (<StepDetails />).
-  // Using JSX element syntax creates a NEW component type on every render,
-  // causing React to unmount/remount the step — which unregisters all
-  // react-hook-form inputs (focus loss + wiped field values = save does nothing).
-  const stepComponents = [StepDetails(), StepRisk(), StepStrategy(), StepScreenshots(), StepNotes()];
+// ─── Main component ───────────────────────────────────────────────────────────
+
+const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = null, onSaved }) => {
+  const dispatch = useDispatch();
+  const accounts = useSelector(selectAccounts);
+  const [step, setStep]               = useState(0);
+  const addAnotherRef                 = useRef(false); // ref so onClick writes sync before onSubmit reads
+  const [screenshots, setScreenshots] = useState(initialData?.screenshots || []);
+  const [uploading, setUploading]     = useState(false);
+  const isEdit = !!initialData;
+
+  const {
+    register, handleSubmit, control, watch, setValue, reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(tradeSchema),
+    defaultValues: initialData
+      ? {
+          ...initialData,
+          accountId: initialData.accountId?._id || initialData.accountId || '',
+          entryDate: initialData.entryDate?.slice(0, 16) || '',
+          exitDate:  initialData.exitDate?.slice(0, 16)  || '',
+          tags:      initialData.tags || [],
+        }
+      : {
+          accountId:      defaultAccountId || accounts[0]?._id || '',
+          symbol:         '',
+          assetClass:     'stock',
+          direction:      'long',
+          status:         'open',
+          entryDate:      new Date().toISOString().slice(0, 16),
+          exitDate:       '',
+          entryPrice:     '',
+          exitPrice:      '',
+          quantity:       '',
+          stopLoss:       '',
+          takeProfit:     '',
+          fees:           0,
+          tags:           [],
+          emotion:        '',
+          executionGrade: '',
+          notes:          '',
+        },
+  });
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!open) { reset(); setStep(0); setScreenshots(initialData?.screenshots || []); }
+  }, [open]);
+
+  const watchedValues = watch(['direction', 'entryPrice', 'exitPrice', 'quantity', 'fees', 'stopLoss', 'status']);
+  const statusVal     = watch('status');
+  const { pnl, rMultiple } = calcLivePnl({
+    direction:  watchedValues[0],
+    entryPrice: watchedValues[1],
+    exitPrice:  watchedValues[2],
+    quantity:   watchedValues[3],
+    fees:       watchedValues[4],
+    stopLoss:   watchedValues[5],
+  });
+
+  const handleScreenshotUpload = async (files) => {
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append('screenshot', file);
+        const res = await apiUploadScreenshot(fd);
+        setScreenshots(prev => [...prev, { url: res.data.data.url, caption: '' }]);
+      }
+    } catch {
+      dispatch(addToast({ message: 'Screenshot upload failed.', type: 'error' }));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const onSubmit = async (data) => {
+    const payload = { ...data, screenshots };
+    if (data.status === 'open') { payload.exitPrice = null; payload.exitDate = null; }
+
+    try {
+      if (isEdit) {
+        await dispatch(updateTrade({ id: initialData._id, data: payload })).unwrap();
+        dispatch(addToast({ message: 'Trade updated.', type: 'success' }));
+      } else {
+        await dispatch(createTrade(payload)).unwrap();
+        dispatch(addToast({ message: 'Trade logged!', type: 'success' }));
+      }
+      onSaved?.();
+      if (addAnotherRef.current) { reset(); setStep(0); setScreenshots([]); }
+      else onClose();
+    } catch (err) {
+      dispatch(addToast({ message: typeof err === 'string' ? err : 'Failed to save trade.', type: 'error' }));
+    }
+  };
+
+  // When validation fails, jump to the first step with an error and show a toast.
+  const onValidationError = (errs) => {
+    const fields     = Object.keys(errs);
+    const firstStep  = Math.min(...fields.map(f => FIELD_STEP_MAP[f] ?? 0));
+    setStep(firstStep);
+
+    const labels = {
+      accountId: 'Account', symbol: 'Symbol', entryDate: 'Entry Date',
+      entryPrice: 'Entry Price', exitPrice: 'Exit Price', exitDate: 'Exit Date',
+      quantity: 'Quantity',
+    };
+    const missing = fields.map(f => labels[f]).filter(Boolean).join(', ');
+    dispatch(addToast({
+      message: missing ? `Please fill in: ${missing}` : 'Please complete all required fields before saving.',
+      type: 'error',
+    }));
+  };
 
   return (
     <Modal
@@ -527,7 +541,25 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
 
       <form onSubmit={handleSubmit(onSubmit, onValidationError)} noValidate>
         <div className="min-h-[320px]">
-          {stepComponents[step]}
+          {step === 0 && (
+            <StepDetails
+              register={register} watch={watch} setValue={setValue}
+              errors={errors} statusVal={statusVal} accounts={accounts}
+            />
+          )}
+          {step === 1 && (
+            <StepRisk register={register} watch={watch} pnl={pnl} rMultiple={rMultiple} />
+          )}
+          {step === 2 && (
+            <StepStrategy watch={watch} setValue={setValue} control={control} />
+          )}
+          {step === 3 && (
+            <StepScreenshots
+              screenshots={screenshots} setScreenshots={setScreenshots}
+              uploading={uploading} handleScreenshotUpload={handleScreenshotUpload}
+            />
+          )}
+          {step === 4 && <StepNotes register={register} />}
         </div>
 
         {/* Navigation */}
@@ -546,7 +578,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
               <button
                 type="button"
                 onClick={() => setStep(s => Math.min(STEPS.length - 1, s + 1))}
-                className="flex items-center gap-1 rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-brand-muted)] transition-colors"
+                className="flex items-center gap-1 rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-colors"
               >
                 Next <ChevronRight size={16} />
               </button>
@@ -559,14 +591,14 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
                     onClick={() => { addAnotherRef.current = true; }}
                     className="rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] disabled:opacity-50 transition-colors"
                   >
-                    Save & add another
+                    Save &amp; add another
                   </button>
                 )}
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   onClick={() => { addAnotherRef.current = false; }}
-                  className="rounded-lg bg-[var(--color-brand)] px-5 py-2 text-sm font-medium text-white hover:bg-[var(--color-brand-muted)] disabled:opacity-50 transition-colors"
+                  className="rounded-lg bg-[var(--color-brand)] px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
                 >
                   {isSubmitting ? 'Saving…' : isEdit ? 'Update Trade' : 'Save Trade'}
                 </button>
