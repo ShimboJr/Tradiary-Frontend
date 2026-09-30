@@ -31,15 +31,15 @@ const EMOTION_EMOJI = {
 };
 
 export default function TradeDetailPage() {
-  const { id }     = useParams();
-  const dispatch   = useDispatch();
-  const navigate   = useNavigate();
-  const trade      = useSelector(selectTrade);
-  const status     = useSelector(selectTradesStatus);
+  const { id } = useParams();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const trade = useSelector(selectTrade);
+  const status = useSelector(selectTradesStatus);
 
-  const [showEdit, setShowEdit]         = useState(false);
-  const [showDelete, setShowDelete]     = useState(false);
-  const [lightboxIdx, setLightboxIdx]   = useState(null);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(null);
   const [relatedTrades, setRelatedTrades] = useState([]);
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function TradeDetailPage() {
     if (!trade?.symbol) return;
     apiListTrades({ symbol: trade.symbol, limit: 6, sortBy: 'entryDate', sortDir: 'desc' })
       .then(res => setRelatedTrades(res.data.data.trades.filter(t => t._id !== id).slice(0, 5)))
-      .catch(() => {});
+      .catch(() => { });
   }, [trade?.symbol, id]);
 
   const handleDelete = async () => {

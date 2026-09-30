@@ -3,7 +3,7 @@
  * Multi-section trade entry / edit modal.
  * Sections: Details → Risk & Result → Strategy & Tags → Screenshots → Notes
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -106,7 +106,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
   const dispatch   = useDispatch();
   const accounts   = useSelector(selectAccounts);
   const [step, setStep]           = useState(0);
-  const [addAnother, setAddAnother] = useState(false);
+  const addAnotherRef = useRef(false); // use ref so onClick writes sync, onSubmit reads correct value
   const [screenshots, setScreenshots] = useState(initialData?.screenshots || []);
   const [uploading, setUploading] = useState(false);
   const isEdit = !!initialData;
@@ -186,7 +186,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
         dispatch(addToast({ message: 'Trade logged!', type: 'success' }));
       }
       onSaved?.();
-      if (addAnother) { reset(); setStep(0); setScreenshots([]); }
+      if (addAnotherRef.current) { reset(); setStep(0); setScreenshots([]); }
       else onClose();
     } catch (err) {
       dispatch(addToast({ message: err || 'Failed to save trade.', type: 'error' }));
@@ -296,7 +296,11 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
 
       {/* Quantity */}
       <div>
-        <label className={labelCls}>Quantity *</label>
+        <label className={labelCls}>
+          Quantity
+          <span className="ml-1 font-normal opacity-60">(Lot Size × 100)</span>
+          {' *'}
+        </label>
         <input type="number" step="any" className={inputCls} placeholder="100" {...register('quantity')} />
         {errors.quantity && <p className={errCls}>{errors.quantity.message}</p>}
       </div>
@@ -452,7 +456,11 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
     </div>
   );
 
-  const stepComponents = [<StepDetails />, <StepRisk />, <StepStrategy />, <StepScreenshots />, <StepNotes />];
+  // IMPORTANT: call as plain functions, NOT as JSX elements (<StepDetails />).
+  // Using JSX element syntax creates a NEW component type on every render,
+  // causing React to unmount/remount the step — which unregisters all
+  // react-hook-form inputs (focus loss + wiped field values = save does nothing).
+  const stepComponents = [StepDetails(), StepRisk(), StepStrategy(), StepScreenshots(), StepNotes()];
 
   return (
     <Modal
@@ -513,7 +521,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    onClick={() => setAddAnother(true)}
+                    onClick={() => { addAnotherRef.current = true; }}
                     className="rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] disabled:opacity-50 transition-colors"
                   >
                     Save & add another
@@ -522,7 +530,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  onClick={() => setAddAnother(false)}
+                  onClick={() => { addAnotherRef.current = false; }}
                   className="rounded-lg bg-[var(--color-brand)] px-5 py-2 text-sm font-medium text-white hover:bg-[var(--color-brand-muted)] disabled:opacity-50 transition-colors"
                 >
                   {isSubmitting ? 'Saving…' : isEdit ? 'Update Trade' : 'Save Trade'}
