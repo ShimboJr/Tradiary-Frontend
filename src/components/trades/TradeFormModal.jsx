@@ -230,7 +230,7 @@ function StepDetails({ register, watch, setValue, errors, statusVal, accounts })
       <div>
         <label className={labelCls}>
           Quantity
-          <span className="ml-1 font-normal opacity-60">(Lot Size × 100)</span>
+          <span className="ml-1 font-normal opacity-60">(Lot Size × Contract Size)</span>
           {' *'}
         </label>
         <input type="number" step="any" className={inputCls} placeholder="100" {...register('quantity')} />
@@ -482,31 +482,31 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
     if (open) {
       const vals = initialData
         ? {
-            ...initialData,
-            accountId: initialData.accountId?._id || initialData.accountId || '',
-            entryDate: initialData.entryDate?.slice(0, 16) || '',
-            exitDate: initialData.exitDate?.slice(0, 16) || '',
-            tags: initialData.tags || [],
-          }
+          ...initialData,
+          accountId: initialData.accountId?._id || initialData.accountId || '',
+          entryDate: initialData.entryDate?.slice(0, 16) || '',
+          exitDate: initialData.exitDate?.slice(0, 16) || '',
+          tags: initialData.tags || [],
+        }
         : {
-            accountId: defaultAccountId || accounts[0]?._id || '',
-            symbol: '',
-            assetClass: 'stock',
-            direction: 'long',
-            status: 'open',
-            entryDate: new Date().toISOString().slice(0, 16),
-            exitDate: '',
-            entryPrice: '',
-            exitPrice: '',
-            quantity: '',
-            stopLoss: '',
-            takeProfit: '',
-            fees: 0,
-            tags: [],
-            emotion: '',
-            executionGrade: '',
-            notes: '',
-          };
+          accountId: defaultAccountId || accounts[0]?._id || '',
+          symbol: '',
+          assetClass: 'stock',
+          direction: 'long',
+          status: 'open',
+          entryDate: new Date().toISOString().slice(0, 16),
+          exitDate: '',
+          entryPrice: '',
+          exitPrice: '',
+          quantity: '',
+          stopLoss: '',
+          takeProfit: '',
+          fees: 0,
+          tags: [],
+          emotion: '',
+          executionGrade: '',
+          notes: '',
+        };
       reset(vals);
       setScreenshots(initialData?.screenshots || []);
       setStep(0);
