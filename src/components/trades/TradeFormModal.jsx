@@ -45,7 +45,7 @@ const tradeSchema = z.object({
   quantity: z.coerce.number().positive('Quantity must be positive'),
   stopLoss: optPositiveNum,
   takeProfit: optPositiveNum,
-  fees: z.coerce.number().positive('Fees must be positive').min(0).default(0),
+  fees: z.coerce.number().min(0, 'Fees cannot be negative').default(0),
   strategyId: z.string().optional().nullable(),
   tags: z.array(z.string()).default([]),
   emotion: z.string().optional(),
