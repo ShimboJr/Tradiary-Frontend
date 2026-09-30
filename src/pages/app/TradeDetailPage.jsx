@@ -167,6 +167,17 @@ export default function TradeDetailPage() {
               </p>
             </div>
           )}
+          {trade.strategyId?.name && (
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)]">Strategy</p>
+              <Link
+                to={`/app/playbooks/${trade.strategyId._id}`}
+                className="inline-flex items-center gap-1.5 mt-0.5 font-medium text-[var(--color-brand)] hover:underline"
+              >
+                {trade.strategyId.name}
+              </Link>
+            </div>
+          )}
           {trade.tags?.length > 0 && (
             <div className="sm:col-span-3">
               <p className="text-xs text-[var(--color-text-muted)] mb-1.5">Tags</p>
