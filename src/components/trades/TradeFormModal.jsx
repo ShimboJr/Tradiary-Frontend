@@ -47,7 +47,10 @@ const tradeSchema = z.object({
   stopLoss: optPositiveNum,
   takeProfit: optPositiveNum,
   fees: z.coerce.number().min(0, 'Fees cannot be negative').default(0),
-  strategyId: z.string().optional().nullable(),
+  strategyId: z.preprocess(
+    v => (v === '' || v === null || v === undefined) ? null : (typeof v === 'object' ? v._id : v),
+    z.string().nullable().optional()
+  ),
   tags: z.array(z.string()).default([]),
   mistakes: z.array(z.string()).default([]),
   emotion: z.string().optional(),
@@ -491,9 +494,11 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
       ? {
         ...initialData,
         accountId: initialData.accountId?._id || initialData.accountId || '',
+        strategyId: initialData.strategyId?._id || initialData.strategyId || null,
         entryDate: initialData.entryDate?.slice(0, 16) || '',
         exitDate: initialData.exitDate?.slice(0, 16) || '',
         tags: initialData.tags || [],
+        mistakes: initialData.mistakes || [],
       }
       : {
         accountId: defaultAccountId || accounts[0]?._id || '',
@@ -526,9 +531,11 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
         ? {
           ...initialData,
           accountId: initialData.accountId?._id || initialData.accountId || '',
+          strategyId: initialData.strategyId?._id || initialData.strategyId || null,
           entryDate: initialData.entryDate?.slice(0, 16) || '',
           exitDate: initialData.exitDate?.slice(0, 16) || '',
           tags: initialData.tags || [],
+          mistakes: initialData.mistakes || [],
         }
         : {
           accountId: defaultAccountId || accounts[0]?._id || '',
