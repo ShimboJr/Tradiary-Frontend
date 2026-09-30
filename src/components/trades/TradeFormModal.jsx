@@ -49,6 +49,7 @@ const tradeSchema = z.object({
   fees: z.coerce.number().min(0, 'Fees cannot be negative').default(0),
   strategyId: z.string().optional().nullable(),
   tags: z.array(z.string()).default([]),
+  mistakes: z.array(z.string()).default([]),
   emotion: z.string().optional(),
   executionGrade: z.string().optional(),
   notes: z.string().optional(),
@@ -66,6 +67,11 @@ const errCls = 'mt-1 text-xs text-[var(--color-loss-text)]';
 const STEPS = ['Details', 'Risk & Result', 'Strategy & Tags', 'Screenshots', 'Notes'];
 const EMOTIONS = ['confident', 'fearful', 'fomo', 'revenge', 'disciplined', 'neutral'];
 const GRADES = ['A', 'B', 'C', 'D', 'F'];
+const MISTAKES = [
+  'FOMO entry', 'Revenge trade', 'No stop loss', 'Moved stop loss',
+  'Overtraded', 'Sized too large', 'Chased price', 'Ignored plan',
+  'Early exit', 'Late exit', 'News event ignored', 'Wrong timeframe',
+];
 
 // Maps each form field to the step index where it lives.
 // Used by onValidationError to jump to the first step with an error.
@@ -73,7 +79,7 @@ const FIELD_STEP_MAP = {
   accountId: 0, symbol: 0, assetClass: 0, direction: 0, status: 0,
   entryDate: 0, exitDate: 0, entryPrice: 0, exitPrice: 0, quantity: 0, fees: 0,
   stopLoss: 1, takeProfit: 1,
-  emotion: 2, executionGrade: 2, tags: 2,
+  emotion: 2, executionGrade: 2, tags: 2, mistakes: 2,
   notes: 4,
 };
 
@@ -292,6 +298,14 @@ function StepRisk({ register, watch, pnl, rMultiple }) {
 // ─── Step 3: Strategy & Tags ──────────────────────────────────────────────────
 
 function StepStrategy({ watch, setValue, control, strategies }) {
+  const selectedMistakes = watch('mistakes') || [];
+  const toggleMistake = (m) => {
+    const next = selectedMistakes.includes(m)
+      ? selectedMistakes.filter(x => x !== m)
+      : [...selectedMistakes, m];
+    setValue('mistakes', next);
+  };
+
   return (
     <div className="space-y-4">
       {/* Strategy selector */}
@@ -304,9 +318,7 @@ function StepStrategy({ watch, setValue, control, strategies }) {
         >
           <option value="">— None —</option>
           {strategies.map(s => (
-            <option key={s._id} value={s._id}>
-              {s.name}
-            </option>
+            <option key={s._id} value={s._id}>{s.name}</option>
           ))}
         </select>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
@@ -353,6 +365,35 @@ function StepStrategy({ watch, setValue, control, strategies }) {
             );
           })}
         </div>
+      </div>
+
+      {/* Mistakes */}
+      <div>
+        <label className={labelCls}>
+          Mistakes
+          {selectedMistakes.length > 0 && (
+            <span className="ml-1.5 font-normal text-[var(--color-loss-text)]">({selectedMistakes.length} selected)</span>
+          )}
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {MISTAKES.map(m => {
+            const active = selectedMistakes.includes(m);
+            return (
+              <button key={m} type="button"
+                onClick={() => toggleMistake(m)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors border
+                  ${active
+                    ? 'border-[var(--color-loss)] bg-[var(--color-loss-subtle)] text-[var(--color-loss-text)]'
+                    : 'border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:border-[var(--color-loss)] hover:text-[var(--color-loss-text)]'}`}
+              >
+                {m}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-1.5 text-xs text-[var(--color-text-muted)]">
+          Select all mistakes made on this trade — they'll appear in the Mistake Tracker with P&amp;L cost.
+        </p>
       </div>
 
       {/* Tags */}
@@ -469,6 +510,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
         takeProfit: '',
         fees: 0,
         tags: [],
+        mistakes: [],
         emotion: '',
         executionGrade: '',
         notes: '',
@@ -503,6 +545,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
           takeProfit: '',
           fees: 0,
           tags: [],
+          mistakes: [],
           emotion: '',
           executionGrade: '',
           notes: '',
