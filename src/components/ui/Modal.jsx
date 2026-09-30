@@ -38,6 +38,7 @@ const Modal = ({ open, onClose, title, children, size = 'md', className = '' }) 
         <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4">
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">{title}</h2>
           <button
+            type="button"
             onClick={onClose}
             className="rounded-lg p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-100)] hover:text-[var(--color-text-primary)] transition-colors"
           >

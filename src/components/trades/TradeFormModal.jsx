@@ -550,6 +550,12 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
   };
 
   const onSubmit = async (data) => {
+    // Guard: only save when the user is actually on the last step.
+    // If the form fires earlier (e.g. browser implicit submit), just navigate forward.
+    if (step < STEPS.length - 1) {
+      setStep(s => Math.min(STEPS.length - 1, s + 1));
+      return;
+    }
     const payload = { ...data, screenshots };
     if (data.status === 'open') { payload.exitPrice = null; payload.exitDate = null; }
 
