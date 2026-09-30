@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { useDispatch, useSelector } from 'react-redux';
 import { createTrade, updateTrade } from '@/features/trades/tradesSlice';
 import { selectAccounts } from '@/features/accounts/accountsSlice';
+import { fetchStrategies, selectStrategies } from '@/features/strategies/strategiesSlice';
 import { apiUploadScreenshot } from '@/api/trades';
 import { addToast } from '@/features/ui/toastSlice';
 import Modal from '@/components/ui/Modal';
@@ -290,9 +291,29 @@ function StepRisk({ register, watch, pnl, rMultiple }) {
 
 // ─── Step 3: Strategy & Tags ──────────────────────────────────────────────────
 
-function StepStrategy({ watch, setValue, control }) {
+function StepStrategy({ watch, setValue, control, strategies }) {
   return (
     <div className="space-y-4">
+      {/* Strategy selector */}
+      <div>
+        <label className={labelCls}>Strategy / Playbook</label>
+        <select
+          className={inputCls}
+          value={watch('strategyId') || ''}
+          onChange={e => setValue('strategyId', e.target.value || null)}
+        >
+          <option value="">— None —</option>
+          {strategies.map(s => (
+            <option key={s._id} value={s._id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+          Link this trade to a saved Playbook strategy to track discipline and performance.
+        </p>
+      </div>
+
       {/* Emotion */}
       <div>
         <label className={labelCls}>Emotion</label>
@@ -411,6 +432,7 @@ function StepNotes({ register }) {
 const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = null, onSaved }) => {
   const dispatch = useDispatch();
   const accounts = useSelector(selectAccounts);
+  const strategies = useSelector(selectStrategies);
   const [step, setStep] = useState(0);
   const addAnotherRef = useRef(false); // ref so onClick writes sync before onSubmit reads
   const [screenshots, setScreenshots] = useState(initialData?.screenshots || []);
@@ -494,6 +516,11 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
       setScreenshots([]);
     }
   }, [open, initialData]);
+
+  // Load strategies when the modal first opens (if not already loaded)
+  useEffect(() => {
+    if (open && strategies.length === 0) dispatch(fetchStrategies());
+  }, [open]);
 
   const watchedValues = watch(['direction', 'entryPrice', 'exitPrice', 'quantity', 'fees', 'stopLoss', 'status']);
   const statusVal = watch('status');
@@ -588,7 +615,9 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
         ))}
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit, onValidationError)} noValidate>
+      {/* The form only wraps field inputs — navigation lives outside to prevent
+           any accidental implicit submit when clicking Back/Next. */}
+      <form id="trade-form" onSubmit={handleSubmit(onSubmit, onValidationError)} noValidate>
         <div className="min-h-[320px]">
           {step === 0 && (
             <StepDetails
@@ -600,7 +629,10 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
             <StepRisk register={register} watch={watch} pnl={pnl} rMultiple={rMultiple} />
           )}
           {step === 2 && (
-            <StepStrategy watch={watch} setValue={setValue} control={control} />
+            <StepStrategy
+              watch={watch} setValue={setValue} control={control}
+              strategies={strategies}
+            />
           )}
           {step === 3 && (
             <StepScreenshots
@@ -610,52 +642,55 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
           )}
           {step === 4 && <StepNotes register={register} />}
         </div>
+      </form>
 
-        {/* Navigation */}
-        <div className="mt-6 flex items-center justify-between border-t border-[var(--color-border)] pt-4">
-          <button
-            type="button"
-            onClick={() => setStep(s => Math.max(0, s - 1))}
-            disabled={step === 0}
-            className="flex items-center gap-1 rounded-lg px-4 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronLeft size={16} /> Back
-          </button>
+      {/* Navigation — intentionally outside the <form> so these buttons never
+           trigger an implicit form submit regardless of browser behaviour. */}
+      <div className="mt-6 flex items-center justify-between border-t border-[var(--color-border)] pt-4">
+        <button
+          type="button"
+          onClick={() => setStep(s => Math.max(0, s - 1))}
+          disabled={step === 0}
+          className="flex items-center gap-1 rounded-lg px-4 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          <ChevronLeft size={16} /> Back
+        </button>
 
-          <div className="flex items-center gap-2">
-            {step < STEPS.length - 1 ? (
-              <button
-                type="button"
-                onClick={() => setStep(s => Math.min(STEPS.length - 1, s + 1))}
-                className="flex items-center gap-1 rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-colors"
-              >
-                Next <ChevronRight size={16} />
-              </button>
-            ) : (
-              <>
-                {!isEdit && (
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    onClick={() => { addAnotherRef.current = true; }}
-                    className="rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] disabled:opacity-50 transition-colors"
-                  >
-                    Save &amp; add another
-                  </button>
-                )}
+        <div className="flex items-center gap-2">
+          {step < STEPS.length - 1 ? (
+            <button
+              type="button"
+              onClick={() => setStep(s => Math.min(STEPS.length - 1, s + 1))}
+              className="flex items-center gap-1 rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-colors"
+            >
+              Next <ChevronRight size={16} />
+            </button>
+          ) : (
+            <>
+              {!isEdit && (
                 <button
                   type="submit"
+                  form="trade-form"
                   disabled={isSubmitting}
-                  onClick={() => { addAnotherRef.current = false; }}
-                  className="rounded-lg bg-[var(--color-brand)] px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
+                  onClick={() => { addAnotherRef.current = true; }}
+                  className="rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] disabled:opacity-50 transition-colors"
                 >
-                  {isSubmitting ? 'Saving…' : isEdit ? 'Update Trade' : 'Save Trade'}
+                  Save &amp; add another
                 </button>
-              </>
-            )}
-          </div>
+              )}
+              <button
+                type="submit"
+                form="trade-form"
+                disabled={isSubmitting}
+                onClick={() => { addAnotherRef.current = false; }}
+                className="rounded-lg bg-[var(--color-brand)] px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
+              >
+                {isSubmitting ? 'Saving…' : isEdit ? 'Update Trade' : 'Save Trade'}
+              </button>
+            </>
+          )}
         </div>
-      </form>
+      </div>
     </Modal>
   );
 };
