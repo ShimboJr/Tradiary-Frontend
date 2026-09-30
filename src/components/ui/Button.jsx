@@ -56,7 +56,7 @@ const Button = React.forwardRef(
         ref={ref}
         disabled={isDisabled}
         className={[
-          'inline-flex items-center justify-center gap-2 font-medium',
+          'inline-flex items-center justify-center gap-2 font-medium whitespace-nowrap',
           'transition-all duration-150',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-indigo)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]',
           variants[variant] ?? variants.primary,

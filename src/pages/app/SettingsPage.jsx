@@ -567,11 +567,11 @@ const AccountsTab = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <p className="text-sm text-[var(--text-muted)]">
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <p className="text-sm text-[var(--text-muted)] min-w-0">
           Manage your trading accounts. Each account tracks its own equity and trades independently.
         </p>
-        <Button size="sm" leftIcon={<Plus size={14} />} onClick={openNew}>
+        <Button size="sm" leftIcon={<Plus size={14} />} onClick={openNew} className="shrink-0">
           Add account
         </Button>
       </div>
