@@ -104,10 +104,12 @@ const setPasswordSchema = z.object({
 });
 
 const accountSchema = z.object({
-  name:           z.string().min(1, 'Name is required'),
-  broker:         z.string().optional(),
-  currency:       z.string().length(3).optional(),
-  initialBalance: z.coerce.number().min(0).optional(),
+  name:            z.string().min(1, 'Name is required'),
+  accountNumber:   z.string().optional(),
+  type:            z.enum(['live', 'paper']),
+  broker:          z.string().optional(),
+  currency:        z.string().length(3, 'Select a currency'),
+  startingBalance: z.coerce.number().min(0, 'Must be 0 or more').optional(),
 });
 
 // ── Field ─────────────────────────────────────────────────────────────────────
@@ -467,12 +469,18 @@ const SecurityTab = () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // Accounts Tab
 // ═══════════════════════════════════════════════════════════════════════════════
+const SEL_CLS = 'w-full rounded-lg border border-[var(--border)] bg-[var(--surface-100)] px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-indigo)] transition-colors';
+
 const AccountsTab = () => {
   const dispatch = useDispatch();
-  const [accounts, setAccounts] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing]   = useState(null); // null = new account
+  const [accounts, setAccounts]       = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [showModal, setShowModal]     = useState(false);
+  const [editing, setEditing]         = useState(null); // null = new
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget]   = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleting, setDeleting]           = useState(false);
 
   const fetchAccounts = async () => {
     try {
@@ -486,21 +494,24 @@ const AccountsTab = () => {
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(accountSchema),
+    defaultValues: { type: 'live', currency: 'USD', startingBalance: '' },
   });
 
   const openNew = () => {
     setEditing(null);
-    reset({ name: '', broker: '', currency: 'USD', initialBalance: '' });
+    reset({ name: '', accountNumber: '', type: 'live', broker: '', currency: 'USD', startingBalance: '' });
     setShowModal(true);
   };
 
   const openEdit = (acct) => {
     setEditing(acct);
     reset({
-      name:           acct.name,
-      broker:         acct.broker ?? '',
-      currency:       acct.currency ?? 'USD',
-      initialBalance: acct.initialBalance ?? '',
+      name:            acct.name,
+      accountNumber:   acct.accountNumber ?? '',
+      type:            acct.type          ?? 'live',
+      broker:          acct.broker        ?? '',
+      currency:        acct.currency      ?? 'USD',
+      startingBalance: acct.startingBalance ?? 0,
     });
     setShowModal(true);
   };
@@ -531,14 +542,35 @@ const AccountsTab = () => {
     }
   };
 
+  const openDelete = (acct) => {
+    setDeleteTarget(acct);
+    setDeleteConfirm('');
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await axios.delete(`/accounts/${deleteTarget._id}`);
+      dispatch(toastSuccess('Account deleted.'));
+      setDeleteTarget(null);
+      fetchAccounts();
+    } catch (err) {
+      dispatch(toastError(err.response?.data?.error?.message ?? 'Failed to delete account.'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Confirm key: account number if set, otherwise account name
+  const deleteKey = deleteTarget?.accountNumber?.trim() || deleteTarget?.name?.trim() || '';
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <p className="text-sm text-[var(--text-muted)]">
-            Manage your trading accounts. Each account tracks its own equity and trades independently.
-          </p>
-        </div>
+        <p className="text-sm text-[var(--text-muted)]">
+          Manage your trading accounts. Each account tracks its own equity and trades independently.
+        </p>
         <Button size="sm" leftIcon={<Plus size={14} />} onClick={openNew}>
           Add account
         </Button>
@@ -557,19 +589,36 @@ const AccountsTab = () => {
           {accounts.map(acct => (
             <div
               key={acct._id}
-              className={`flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] px-4 py-3 ${acct.isArchived ? 'opacity-50' : ''}`}
+              className={`flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] px-4 py-3 transition-opacity ${acct.isArchived ? 'opacity-50' : ''}`}
             >
-              <div>
-                <p className="font-medium text-[var(--text)] text-sm">{acct.name}</p>
-                <p className="text-xs text-[var(--text-muted)]">
-                  {acct.broker && `${acct.broker} · `}{acct.currency ?? 'USD'}
-                  {acct.isArchived && ' · Archived'}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-[var(--text)] text-sm">{acct.name}</p>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
+                    acct.type === 'paper'
+                      ? 'bg-[var(--brand-cyan-subtle)] text-[var(--brand-cyan)]'
+                      : 'bg-[var(--brand-indigo-subtle)] text-[var(--brand-indigo)]'
+                  }`}>
+                    {acct.type === 'paper' ? 'Paper' : 'Live'}
+                  </span>
+                  {acct.isArchived && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-[var(--surface-200)] text-[var(--text-muted)]">
+                      Archived
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  {acct.accountNumber && <span className="mr-2">#{acct.accountNumber}</span>}
+                  {acct.broker && <span className="mr-2">{acct.broker}</span>}
+                  {acct.currency ?? 'USD'}
+                  {acct.startingBalance > 0 && ` · ${acct.currency ?? 'USD'} ${acct.startingBalance.toLocaleString()}`}
                 </p>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0 ml-3">
                 <button
                   onClick={() => openEdit(acct)}
                   aria-label={`Edit ${acct.name}`}
+                  title="Edit"
                   className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-200)] hover:text-[var(--text)] transition-colors"
                 >
                   <Pencil size={13} />
@@ -577,9 +626,18 @@ const AccountsTab = () => {
                 <button
                   onClick={() => handleArchive(acct)}
                   aria-label={acct.isArchived ? `Restore ${acct.name}` : `Archive ${acct.name}`}
+                  title={acct.isArchived ? 'Restore' : 'Archive'}
                   className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-200)] hover:text-[var(--text)] transition-colors"
                 >
                   <Archive size={13} />
+                </button>
+                <button
+                  onClick={() => openDelete(acct)}
+                  aria-label={`Delete ${acct.name}`}
+                  title="Delete"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--loss-subtle)] hover:text-[var(--loss)] transition-colors"
+                >
+                  <Trash2 size={13} />
                 </button>
               </div>
             </div>
@@ -587,49 +645,93 @@ const AccountsTab = () => {
         </div>
       )}
 
-      {/* Add/Edit account modal */}
-      <Modal
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        title={editing ? 'Edit Account' : 'Add Account'}
-      >
+      {/* Add / Edit account modal */}
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit Account' : 'Add Account'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Field label="Account name" error={errors.name?.message}>
-            <Input {...register('name')} placeholder="e.g. Main Prop Account" className="w-full" />
-          </Field>
-          <Field label="Broker (optional)">
-            <Input {...register('broker')} placeholder="e.g. FTMO, Interactive Brokers" className="w-full" />
-          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Account name" error={errors.name?.message}>
+              <Input {...register('name')} placeholder="e.g. Main Prop Account" className="w-full" />
+            </Field>
+            <Field label="Account number (optional)">
+              <Input {...register('accountNumber')} placeholder="e.g. 10298374" className="w-full" />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Account type" error={errors.type?.message}>
+              <select {...register('type')} className={SEL_CLS}>
+                <option value="live">Live</option>
+                <option value="paper">Paper (Demo)</option>
+              </select>
+            </Field>
+            <Field label="Broker (optional)">
+              <Input {...register('broker')} placeholder="e.g. FTMO, Interactive Brokers" className="w-full" />
+            </Field>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <Field label="Currency" error={errors.currency?.message}>
-              <select
-                {...register('currency')}
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-100)] px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-indigo)]"
-              >
+              <select {...register('currency')} className={SEL_CLS}>
                 {CURRENCIES.map(({ code }) => (
                   <option key={code} value={code}>{code}</option>
                 ))}
               </select>
             </Field>
-            <Field label="Starting balance" error={errors.initialBalance?.message}>
+            <Field label="Starting balance" error={errors.startingBalance?.message}>
               <Input
-                {...register('initialBalance')}
+                {...register('startingBalance')}
                 type="number"
                 step="0.01"
+                min="0"
                 placeholder="0.00"
                 className="w-full"
               />
             </Field>
           </div>
+
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" size="sm" onClick={() => setShowModal(false)}>
-              Cancel
-            </Button>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setShowModal(false)}>Cancel</Button>
             <Button type="submit" size="sm" disabled={isSubmitting}>
               {isSubmitting ? 'Saving…' : editing ? 'Save changes' : 'Create account'}
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete confirmation modal */}
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => { setDeleteTarget(null); setDeleteConfirm(''); }}
+        title="Delete Account"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-[var(--loss)]/30 bg-[var(--loss-subtle)] p-4 text-sm text-[var(--loss-text)]">
+            <strong>Warning:</strong> Deleting <strong>{deleteTarget?.name}</strong> will permanently remove the account.
+            This cannot be undone.
+          </div>
+          <div>
+            <p className="mb-2 text-sm text-[var(--text-muted)]">
+              Type <strong className="text-[var(--text)]">{deleteKey}</strong> to confirm:
+            </p>
+            <Input
+              value={deleteConfirm}
+              onChange={e => setDeleteConfirm(e.target.value)}
+              placeholder={deleteKey}
+              className="w-full"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => { setDeleteTarget(null); setDeleteConfirm(''); }}>Cancel</Button>
+            <Button
+              size="sm"
+              onClick={handleDelete}
+              disabled={deleteConfirm !== deleteKey || deleting}
+              className="bg-[var(--loss)] hover:opacity-90 text-white border-0"
+            >
+              {deleting ? 'Deleting…' : 'Delete account'}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
