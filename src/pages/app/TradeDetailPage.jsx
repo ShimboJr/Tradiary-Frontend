@@ -178,8 +178,20 @@ export default function TradeDetailPage() {
               </Link>
             </div>
           )}
+          {trade.mistakes?.length > 0 && (
+            <div className="sm:col-span-4">
+              <p className="text-xs text-[var(--color-text-muted)] mb-1.5">Mistakes</p>
+              <div className="flex flex-wrap gap-1.5">
+                {trade.mistakes.map(m => (
+                  <span key={m} className="rounded-full border border-[var(--color-loss)] bg-[var(--color-loss-subtle)] px-2.5 py-0.5 text-xs font-medium text-[var(--color-loss-text)]">
+                    {m}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
           {trade.tags?.length > 0 && (
-            <div className="sm:col-span-3">
+            <div className="sm:col-span-4">
               <p className="text-xs text-[var(--color-text-muted)] mb-1.5">Tags</p>
               <div className="flex flex-wrap gap-1.5">
                 {trade.tags.map(tag => (
