@@ -22,25 +22,35 @@ import {
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
+// Preprocessor for optional numeric fields:
+// react-hook-form stores untyped inputs as empty strings ''.
+// z.coerce.number('') → 0, which fails .positive() even when the field is optional.
+// This preprocessor converts '' / null / undefined to null first so the optional check
+// works correctly — no false "required" errors for hidden fields like exitPrice on open trades.
+const optPositiveNum = z.preprocess(
+  (v) => (v === '' || v === null || v === undefined) ? null : Number(v),
+  z.number().positive().nullable().optional()
+);
+
 const tradeSchema = z.object({
-  accountId:      z.string().min(1, 'Account required'),
-  symbol:         z.string().min(1, 'Symbol required').max(20),
-  assetClass:     z.enum(['stock', 'forex', 'crypto', 'futures', 'options']),
-  direction:      z.enum(['long', 'short']),
-  status:         z.enum(['open', 'closed']),
-  entryDate:      z.string().min(1, 'Entry date required'),
-  exitDate:       z.string().optional().nullable(),
-  entryPrice:     z.coerce.number().positive('Entry price must be positive'),
-  exitPrice:      z.coerce.number().positive().optional().nullable(),
-  quantity:       z.coerce.number().positive('Quantity must be positive'),
-  stopLoss:       z.coerce.number().positive().optional().nullable(),
-  takeProfit:     z.coerce.number().positive().optional().nullable(),
-  fees:           z.coerce.number().min(0).default(0),
-  strategyId:     z.string().optional().nullable(),
-  tags:           z.array(z.string()).default([]),
-  emotion:        z.string().optional(),
+  accountId: z.string().min(1, 'Account required'),
+  symbol: z.string().min(1, 'Symbol required').max(20),
+  assetClass: z.enum(['stock', 'forex', 'crypto', 'futures', 'options']),
+  direction: z.enum(['long', 'short']),
+  status: z.enum(['open', 'closed']),
+  entryDate: z.string().min(1, 'Entry date required'),
+  exitDate: z.preprocess(v => (v === '' || v == null) ? null : v, z.string().nullable().optional()),
+  entryPrice: z.coerce.number().positive('Entry price must be positive'),
+  exitPrice: optPositiveNum,
+  quantity: z.coerce.number().positive('Quantity must be positive'),
+  stopLoss: optPositiveNum,
+  takeProfit: optPositiveNum,
+  fees: z.coerce.number().positive('Fees must be positive').min(0).default(0),
+  strategyId: z.string().optional().nullable(),
+  tags: z.array(z.string()).default([]),
+  emotion: z.string().optional(),
   executionGrade: z.string().optional(),
-  notes:          z.string().optional(),
+  notes: z.string().optional(),
 }).refine((d) => {
   if (d.status === 'closed') return !!d.exitPrice && !!d.exitDate;
   return true;
@@ -50,11 +60,11 @@ const tradeSchema = z.object({
 
 const inputCls = 'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-100)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[var(--color-brand)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] transition-colors';
 const labelCls = 'block text-xs font-medium text-[var(--color-text-secondary)] mb-1';
-const errCls   = 'mt-1 text-xs text-[var(--color-loss-text)]';
+const errCls = 'mt-1 text-xs text-[var(--color-loss-text)]';
 
-const STEPS    = ['Details', 'Risk & Result', 'Strategy & Tags', 'Screenshots', 'Notes'];
+const STEPS = ['Details', 'Risk & Result', 'Strategy & Tags', 'Screenshots', 'Notes'];
 const EMOTIONS = ['confident', 'fearful', 'fomo', 'revenge', 'disciplined', 'neutral'];
-const GRADES   = ['A', 'B', 'C', 'D', 'F'];
+const GRADES = ['A', 'B', 'C', 'D', 'F'];
 
 // Maps each form field to the step index where it lives.
 // Used by onValidationError to jump to the first step with an error.
@@ -401,10 +411,10 @@ function StepNotes({ register }) {
 const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = null, onSaved }) => {
   const dispatch = useDispatch();
   const accounts = useSelector(selectAccounts);
-  const [step, setStep]               = useState(0);
-  const addAnotherRef                 = useRef(false); // ref so onClick writes sync before onSubmit reads
+  const [step, setStep] = useState(0);
+  const addAnotherRef = useRef(false); // ref so onClick writes sync before onSubmit reads
   const [screenshots, setScreenshots] = useState(initialData?.screenshots || []);
-  const [uploading, setUploading]     = useState(false);
+  const [uploading, setUploading] = useState(false);
   const isEdit = !!initialData;
 
   const {
@@ -414,31 +424,31 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
     resolver: zodResolver(tradeSchema),
     defaultValues: initialData
       ? {
-          ...initialData,
-          accountId: initialData.accountId?._id || initialData.accountId || '',
-          entryDate: initialData.entryDate?.slice(0, 16) || '',
-          exitDate:  initialData.exitDate?.slice(0, 16)  || '',
-          tags:      initialData.tags || [],
-        }
+        ...initialData,
+        accountId: initialData.accountId?._id || initialData.accountId || '',
+        entryDate: initialData.entryDate?.slice(0, 16) || '',
+        exitDate: initialData.exitDate?.slice(0, 16) || '',
+        tags: initialData.tags || [],
+      }
       : {
-          accountId:      defaultAccountId || accounts[0]?._id || '',
-          symbol:         '',
-          assetClass:     'stock',
-          direction:      'long',
-          status:         'open',
-          entryDate:      new Date().toISOString().slice(0, 16),
-          exitDate:       '',
-          entryPrice:     '',
-          exitPrice:      '',
-          quantity:       '',
-          stopLoss:       '',
-          takeProfit:     '',
-          fees:           0,
-          tags:           [],
-          emotion:        '',
-          executionGrade: '',
-          notes:          '',
-        },
+        accountId: defaultAccountId || accounts[0]?._id || '',
+        symbol: '',
+        assetClass: 'stock',
+        direction: 'long',
+        status: 'open',
+        entryDate: new Date().toISOString().slice(0, 16),
+        exitDate: '',
+        entryPrice: '',
+        exitPrice: '',
+        quantity: '',
+        stopLoss: '',
+        takeProfit: '',
+        fees: 0,
+        tags: [],
+        emotion: '',
+        executionGrade: '',
+        notes: '',
+      },
   });
 
   // Reset state when modal closes
@@ -447,14 +457,14 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
   }, [open]);
 
   const watchedValues = watch(['direction', 'entryPrice', 'exitPrice', 'quantity', 'fees', 'stopLoss', 'status']);
-  const statusVal     = watch('status');
+  const statusVal = watch('status');
   const { pnl, rMultiple } = calcLivePnl({
-    direction:  watchedValues[0],
+    direction: watchedValues[0],
     entryPrice: watchedValues[1],
-    exitPrice:  watchedValues[2],
-    quantity:   watchedValues[3],
-    fees:       watchedValues[4],
-    stopLoss:   watchedValues[5],
+    exitPrice: watchedValues[2],
+    quantity: watchedValues[3],
+    fees: watchedValues[4],
+    stopLoss: watchedValues[5],
   });
 
   const handleScreenshotUpload = async (files) => {
@@ -495,8 +505,8 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
 
   // When validation fails, jump to the first step with an error and show a toast.
   const onValidationError = (errs) => {
-    const fields     = Object.keys(errs);
-    const firstStep  = Math.min(...fields.map(f => FIELD_STEP_MAP[f] ?? 0));
+    const fields = Object.keys(errs);
+    const firstStep = Math.min(...fields.map(f => FIELD_STEP_MAP[f] ?? 0));
     setStep(firstStep);
 
     const labels = {
