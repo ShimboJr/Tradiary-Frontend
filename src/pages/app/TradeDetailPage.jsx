@@ -84,12 +84,12 @@ export default function TradeDetailPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link to="/app/trades" className="rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-200)] transition-colors">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Link to="/app/trades" className="flex-shrink-0 rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-200)] transition-colors">
             <ArrowLeft size={18} />
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">{trade.symbol}</h1>
             <Badge variant={trade.direction}>
               {trade.direction === 'long' ? <TrendingUp size={12} className="inline mr-1" /> : <TrendingDown size={12} className="inline mr-1" />}
@@ -99,7 +99,7 @@ export default function TradeDetailPage() {
             {trade.executionGrade && <Badge variant={trade.executionGrade}>{trade.executionGrade}</Badge>}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleDuplicate}
             className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] transition-colors"

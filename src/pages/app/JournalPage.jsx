@@ -80,15 +80,15 @@ export default function JournalPage() {
       </div>
 
       {/* Date selector */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
         <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} max={today()}
-          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-100)] px-3 py-2 text-sm focus:outline-none focus:border-[var(--color-brand)]" />
+          className="flex-shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-100)] px-3 py-2 text-sm focus:outline-none focus:border-[var(--color-brand)]" />
         {[0, 1, 2, 3, 4, 5, 6].map(d => {
           const date = format(subDays(new Date(), d), 'yyyy-MM-dd');
           const label = d === 0 ? 'Today' : d === 1 ? 'Yesterday' : format(subDays(new Date(), d), 'EEE');
           return (
             <button key={d} onClick={() => setSelectedDate(date)}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${selectedDate === date ? 'bg-[var(--color-brand)] text-white' : 'border border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-brand)]'}`}>
+              className={`flex-shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${selectedDate === date ? 'bg-[var(--color-brand)] text-white' : 'border border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-brand)]'}`}>
               {label}
             </button>
           );

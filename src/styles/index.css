@@ -267,3 +267,12 @@ body {
 .glow-cyan {
   box-shadow: 0 0 20px 0 rgba(34, 211, 238, 0.20);
 }
+
+/* ─── Scrollbar-none: hide scrollbar while keeping scroll ───────────────── */
+.scrollbar-none {
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* IE / Edge */
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;                  /* Chrome / Safari / Opera */
+}

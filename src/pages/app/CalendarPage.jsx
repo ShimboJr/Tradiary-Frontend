@@ -79,7 +79,7 @@ export default function CalendarPage() {
   const selectedData = selectedDay ? calData[format(selectedDay, 'yyyy-MM-dd')] : null;
 
   return (
-    <div className="flex gap-6">
+    <div className="flex flex-col lg:flex-row gap-6">
       {/* ── Main calendar ── */}
       <div className="flex-1 min-w-0 space-y-4">
         {/* Header */}
@@ -213,7 +213,7 @@ export default function CalendarPage() {
 
       {/* ── Day side panel ── */}
       {selectedDay && selectedData && (
-        <div className="w-72 flex-shrink-0 space-y-3">
+        <div className="w-full lg:w-72 lg:flex-shrink-0 space-y-3">
           <div className="card">
             <div className="flex items-center justify-between mb-3">
               <div>
