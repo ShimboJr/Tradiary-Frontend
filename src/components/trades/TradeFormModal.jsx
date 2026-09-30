@@ -665,6 +665,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
         <div className="flex items-center gap-2">
           {step < STEPS.length - 1 ? (
             <button
+              key="nav-next"
               type="button"
               onClick={() => setStep(s => Math.min(STEPS.length - 1, s + 1))}
               className="flex items-center gap-1 rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-colors"
@@ -675,6 +676,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
             <>
               {!isEdit && (
                 <button
+                  key="nav-save-another"
                   type="submit"
                   form="trade-form"
                   disabled={isSubmitting}
@@ -685,6 +687,7 @@ const TradeFormModal = ({ open, onClose, initialData = null, defaultAccountId = 
                 </button>
               )}
               <button
+                key="nav-save"
                 type="submit"
                 form="trade-form"
                 disabled={isSubmitting}
