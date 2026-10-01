@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
 //| tradiary-bridge.mq5                                              |
-//| Tradiary MetaTrader 5 Bridge EA                                  |
+//| Tradiary MetaTrader 5 Bridge EA  v1.1                           |
 //|                                                                  |
 //| Automatically pushes trade open/close events to your Tradiary    |
 //| journal via WebRequest.                                          |
@@ -16,7 +16,7 @@
 //|     Tradiary → Settings → Integrations.                          |
 //+------------------------------------------------------------------+
 #property copyright "Tradiary"
-#property version   "1.00"
+#property version   "1.10"
 #property strict
 
 //--- Inputs
@@ -37,7 +37,7 @@ int OnInit()
       return(INIT_FAILED);
    }
    EventSetTimer(2); // drain queue every 2 seconds
-   Print("Tradiary Bridge: started. Webhook URL: ", InpApiUrl);
+   Print("Tradiary Bridge v1.1: started. Webhook URL: ", InpApiUrl);
    return(INIT_SUCCEEDED);
 }
 
@@ -64,24 +64,21 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
    // Fetch full deal details from history
    if(!HistoryDealSelect(trans.deal)) return;
 
-   long  entry     = HistoryDealGetInteger(trans.deal, DEAL_ENTRY);
-   long  dealType  = HistoryDealGetInteger(trans.deal, DEAL_TYPE);
-   string symbol   = HistoryDealGetString(trans.deal,  DEAL_SYMBOL);
-   double price    = HistoryDealGetDouble(trans.deal,  DEAL_PRICE);
-   double lots     = HistoryDealGetDouble(trans.deal,  DEAL_VOLUME);
-   double sl       = HistoryDealGetDouble(trans.deal,  DEAL_SL);
-   double tp       = HistoryDealGetDouble(trans.deal,  DEAL_TP);
-   double commission = HistoryDealGetDouble(trans.deal, DEAL_COMMISSION);
-   double swap     = HistoryDealGetDouble(trans.deal,  DEAL_SWAP);
-   double profit   = HistoryDealGetDouble(trans.deal,  DEAL_PROFIT);
-   long  ticket    = HistoryDealGetInteger(trans.deal, DEAL_TICKET);
-   long  posTicket = HistoryDealGetInteger(trans.deal, DEAL_POSITION_ID);
+   long   entry      = HistoryDealGetInteger(trans.deal, DEAL_ENTRY);
+   long   dealType   = HistoryDealGetInteger(trans.deal, DEAL_TYPE);
+   string symbol     = HistoryDealGetString(trans.deal,  DEAL_SYMBOL);
+   double dealPrice  = HistoryDealGetDouble(trans.deal,  DEAL_PRICE);
+   double lots       = HistoryDealGetDouble(trans.deal,  DEAL_VOLUME);
+   double commission = HistoryDealGetDouble(trans.deal,  DEAL_COMMISSION);
+   double swap       = HistoryDealGetDouble(trans.deal,  DEAL_SWAP);
+   double profit     = HistoryDealGetDouble(trans.deal,  DEAL_PROFIT);
+   long   posTicket  = HistoryDealGetInteger(trans.deal, DEAL_POSITION_ID);
    datetime dealTime = (datetime)HistoryDealGetInteger(trans.deal, DEAL_TIME);
 
-   // Determine direction: DEAL_TYPE_BUY=0, DEAL_TYPE_SELL=1
+   // Determine direction
    string typStr = (dealType == DEAL_TYPE_BUY) ? "buy" : "sell";
 
-   // Determine event: DEAL_ENTRY_IN=0 (open), DEAL_ENTRY_OUT=1 (close)
+   // Determine event type
    string eventStr = "";
    if(entry == DEAL_ENTRY_IN)
       eventStr = "trade_open";
@@ -90,22 +87,59 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
    else
       return; // DEAL_ENTRY_OUT_BY etc. — ignore
 
-   // Use the position ticket as externalId so open/close match up
+   // ── Contract size — multiply here so the backend stores real units ──────
+   // e.g. Gold (XAUUSD): 1 lot = 100 oz, so lots=0.01 → quantity=1 oz
+   double contractSize = SymbolInfoDouble(symbol, SYMBOL_TRADE_CONTRACT_SIZE);
+   if(contractSize <= 0) contractSize = 1.0; // fallback — should never happen
+   double quantity = lots * contractSize;
+
+   // ── SL / TP ─────────────────────────────────────────────────────────────
+   // DEAL_SL / DEAL_TP on a deal record are almost always 0 in MT5.
+   // For an open deal: read from the live position while it still exists.
+   // For a close deal: read from the deal's own SL/TP fields (set by the
+   //   broker at execution) or fall back to 0 (will show as — in Tradiary).
+   double sl = 0.0;
+   double tp = 0.0;
+
+   if(entry == DEAL_ENTRY_IN)
+   {
+      // Position is live — select it and read SL/TP directly
+      if(PositionSelectByTicket(posTicket))
+      {
+         sl = PositionGetDouble(POSITION_SL);
+         tp = PositionGetDouble(POSITION_TP);
+      }
+   }
+   else
+   {
+      // Position already closed — best available source is the deal record
+      sl = HistoryDealGetDouble(trans.deal, DEAL_SL);
+      tp = HistoryDealGetDouble(trans.deal, DEAL_TP);
+   }
+
+   // ── Fees: commission + swap ──────────────────────────────────────────────
+   // commission: charged on entry deal (usually negative, e.g. -3.50)
+   // swap:       charged on overnight holding, non-zero only on close deal
+   // Both are summed on the backend; we send each separately.
+   // Note: abs() not needed — backend uses Math.abs() to handle negative values.
+
+   // Use position ticket as externalId so open and close events match
    string ticketStr = IntegerToString(posTicket);
 
-   string json = BuildJson(eventStr, ticketStr, symbol, typStr, lots, price,
+   string json = BuildJson(eventStr, ticketStr, symbol, typStr,
+                            lots, quantity, dealPrice,
                             sl, tp, commission, swap, profit, dealTime,
-                            price, dealTime, entry, profit);
+                            dealPrice, dealTime, entry);
    if(json == "") return;
 
-   // Enqueue
+   // Enqueue — never block OnTradeTransaction with network I/O
    int n = ArraySize(g_queue);
    ArrayResize(g_queue, n + 1);
    g_queue[n] = json;
 }
 
 //+------------------------------------------------------------------+
-//| OnTimer — drain the send queue                                   |
+//| OnTimer — drain the send queue (runs every 2 s)                  |
 //+------------------------------------------------------------------+
 void OnTimer()
 {
@@ -125,6 +159,7 @@ string BuildJson(string eventStr,
                  string symbol,
                  string tradeType,
                  double lots,
+                 double quantity,
                  double price,
                  double sl,
                  double tp,
@@ -134,38 +169,41 @@ string BuildJson(string eventStr,
                  datetime openTime,
                  double closePrice,
                  datetime closeTime,
-                 long   entry,
-                 double finalProfit)
+                 long   entry)
 {
    string timeStr      = TimeToString(openTime,  TIME_DATE | TIME_SECONDS);
    string closeTimeStr = TimeToString(closeTime, TIME_DATE | TIME_SECONDS);
 
-   // Convert MT5 time string "YYYY.MM.DD HH:MM:SS" to ISO 8601
+   // Convert MT5 time format "YYYY.MM.DD HH:MM:SS" → ISO 8601
    StringReplace(timeStr,      ".", "-");
    StringReplace(closeTimeStr, ".", "-");
-   // MT5 uses spaces, ISO 8601 needs T
    StringReplace(timeStr,      " ", "T");
    StringReplace(closeTimeStr, " ", "T");
    timeStr      += "Z";
    closeTimeStr += "Z";
 
+   // Symbol digits — use for price/SL/TP precision
+   int dig = (int)SymbolInfoInteger(symbol, SYMBOL_DIGITS);
+   if(dig <= 0) dig = _Digits;
+
    string json = "{";
-   json += "\"event\":\"" + eventStr + "\",";
-   json += "\"ticket\":\"" + ticket + "\",";
-   json += "\"symbol\":\"" + symbol + "\",";
-   json += "\"type\":\"" + tradeType + "\",";
-   json += "\"lots\":" + DoubleToString(lots, 2) + ",";
-   json += "\"price\":" + DoubleToString(price, _Digits) + ",";
-   json += "\"sl\":" + (sl > 0 ? DoubleToString(sl, _Digits) : "null") + ",";
-   json += "\"tp\":" + (tp > 0 ? DoubleToString(tp, _Digits) : "null") + ",";
-   json += "\"time\":\"" + timeStr + "\",";
+   json += "\"event\":\""    + eventStr   + "\",";
+   json += "\"ticket\":\""   + ticket     + "\",";
+   json += "\"symbol\":\""   + symbol     + "\",";
+   json += "\"type\":\""     + tradeType  + "\",";
+   json += "\"lots\":"       + DoubleToString(lots, 2)      + ",";
+   json += "\"quantity\":"   + DoubleToString(quantity, 4)  + ",";
+   json += "\"price\":"      + DoubleToString(price, dig)   + ",";
+   json += "\"sl\":"         + (sl > 0 ? DoubleToString(sl, dig) : "null") + ",";
+   json += "\"tp\":"         + (tp > 0 ? DoubleToString(tp, dig) : "null") + ",";
+   json += "\"time\":\""     + timeStr    + "\",";
    json += "\"commission\":" + DoubleToString(commission, 2) + ",";
-   json += "\"swap\":" + DoubleToString(swap, 2) + ",";
-   json += "\"profit\":" + DoubleToString(profit, 2);
+   json += "\"swap\":"       + DoubleToString(swap, 2)       + ",";
+   json += "\"profit\":"     + DoubleToString(profit, 2);
 
    if(entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_INOUT)
    {
-      json += ",\"close_price\":" + DoubleToString(closePrice, _Digits);
+      json += ",\"close_price\":" + DoubleToString(closePrice, dig);
       json += ",\"close_time\":\"" + closeTimeStr + "\"";
    }
 
@@ -174,7 +212,7 @@ string BuildJson(string eventStr,
 }
 
 //+------------------------------------------------------------------+
-//| SendToTradiary — POST the JSON payload, return true on 200       |
+//| SendToTradiary — POST the JSON payload, return true on HTTP 200  |
 //+------------------------------------------------------------------+
 bool SendToTradiary(string json)
 {
@@ -183,7 +221,6 @@ bool SendToTradiary(string json)
    char   resultBytes[];
    string resultHeaders;
 
-   // StringToCharArray excludes the null terminator when we specify exact length
    int jsonLen = StringLen(json);
    ArrayResize(post, jsonLen);
    StringToCharArray(json, post, 0, jsonLen);
@@ -198,9 +235,9 @@ bool SendToTradiary(string json)
          " Response: ", resultStr);
 
    if(status == 401)
-      Print("Tradiary Bridge: 401 Unauthorized — check your InpApiToken or regenerate it in Tradiary settings.");
+      Print("Tradiary Bridge: 401 Unauthorized — check your InpApiToken or regenerate it in Tradiary Settings → Integrations.");
    else if(status == -1)
-      Print("Tradiary Bridge: Network error — check that the URL is allow-listed in Tools → Options → Expert Advisors.");
+      Print("Tradiary Bridge: Network error — is the URL allow-listed in Tools → Options → Expert Advisors?");
 
    return false;
 }
