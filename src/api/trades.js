@@ -15,3 +15,4 @@ export const apiExportTrades    = (params) => axiosInstance.get('/trades/export'
 export const apiCalendarData    = (params) => axiosInstance.get('/trades/calendar', { params });
 export const apiUploadScreenshot= (formData) =>
   axiosInstance.post('/uploads/screenshot', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const apiGetReplayData   = (id)     => axiosInstance.get(`/trades/${id}/replay-data`);
