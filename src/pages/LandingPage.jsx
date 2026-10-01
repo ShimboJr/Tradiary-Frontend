@@ -175,8 +175,7 @@ const LandingPage = () => {
               <Link
                 to="/app/dashboard"
                 id="nav-dashboard-link"
-                className="flex items-center gap-1.5 rounded-lg bg-[var(--brand-indigo-subtle)] px-3 py-1.5 text-xs font-semibold transition-all hover:bg-[var(--brand-indigo)] hover:text-white"
-                style={{ color: 'var(--brand-indigo)' }}
+                className="flex items-center gap-1.5 rounded-lg border border-[var(--brand-indigo)]/40 bg-[var(--brand-indigo-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--brand-indigo)] transition-all hover:bg-[var(--brand-indigo)] hover:text-white hover:border-transparent"
               >
                 <LayoutDashboard size={13} />
                 Dashboard
@@ -231,8 +230,7 @@ const LandingPage = () => {
               <Link
                 to="/app/dashboard"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 py-2 text-sm font-semibold"
-                style={{ color: 'var(--brand-indigo)' }}
+                className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold text-[var(--brand-indigo)] transition-colors hover:bg-[var(--brand-indigo)] hover:text-white"
               >
                 <LayoutDashboard size={14} /> Dashboard
               </Link>
