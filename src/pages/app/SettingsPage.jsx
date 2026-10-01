@@ -3,7 +3,7 @@
  * Full settings page with 4 tabs: Profile, Security, Accounts, Data.
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -14,6 +14,7 @@ import {
   Shield,
   Wallet,
   Database,
+  Plug,
   Camera,
   Save,
   Plus,
@@ -27,11 +28,24 @@ import {
   Eye,
   EyeOff,
   Link2,
+  Copy,
+  RefreshCw,
+  Clock,
+  KeyRound,
+  Terminal,
+  Zap,
 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { selectCurrentUser, updateUser, logout as logoutAction } from '@/features/auth/authSlice';
 import { setTheme, selectTheme } from '@/features/ui/uiSlice';
 import { toastSuccess, toastError } from '@/features/ui/toastSlice';
 import axios from '@/api/axiosInstance';
+import {
+  apiListIntegrationTokens,
+  apiCreateIntegrationToken,
+  apiRevokeIntegrationToken,
+  apiRegenerateIntegrationToken,
+} from '@/api/integrations';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -65,11 +79,13 @@ const CURRENCIES = [
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
 const TABS = [
-  { id: 'profile',   label: 'Profile',   icon: User },
-  { id: 'security',  label: 'Security',  icon: Shield },
-  { id: 'accounts',  label: 'Accounts',  icon: Wallet },
-  { id: 'data',      label: 'Data',      icon: Database },
+  { id: 'profile',      label: 'Profile',      icon: User },
+  { id: 'security',     label: 'Security',     icon: Shield },
+  { id: 'accounts',     label: 'Accounts',     icon: Wallet },
+  { id: 'integrations', label: 'Integrations', icon: Plug },
+  { id: 'data',         label: 'Data',         icon: Database },
 ];
+
 
 // ── Zod schemas ───────────────────────────────────────────────────────────────
 const profileSchema = z.object({
@@ -867,16 +883,344 @@ const DataTab = () => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Integrations Tab
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function getWebhookUrl() {
+  try {
+    const base = import.meta.env?.VITE_API_URL || window.location.origin;
+    const url  = new URL('/api/integrations/metatrader/webhook', base);
+    return url.href;
+  } catch {
+    return `${window.location.origin}/api/integrations/metatrader/webhook`;
+  }
+}
+
+const WEBHOOK_URL = getWebhookUrl();
+
+const IntegrationsTab = () => {
+  const dispatch = useDispatch();
+  const [tokens, setTokens]             = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [newToken, setNewToken]         = useState(null);
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [labelInput, setLabelInput]     = useState('');
+  const [generating, setGenerating]     = useState(false);
+  const [copied, setCopied]             = useState(false);
+  const [revokeTarget, setRevokeTarget] = useState(null);
+  const [regenTarget, setRegenTarget]   = useState(null);
+  const [acting, setActing]             = useState(false);
+
+  const fetchTokens = useCallback(async () => {
+    try {
+      const { data } = await apiListIntegrationTokens();
+      setTokens(data.data ?? []);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchTokens(); }, [fetchTokens]);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const { data } = await apiCreateIntegrationToken({ label: labelInput || 'MetaTrader Terminal' });
+      setNewToken(data.data);
+      setShowNewModal(false);
+      fetchTokens();
+    } catch (err) {
+      dispatch(toastError(err.response?.data?.error?.message ?? 'Failed to generate token.'));
+    } finally { setGenerating(false); }
+  };
+
+  const handleRevoke = async () => {
+    if (!revokeTarget) return;
+    setActing(true);
+    try {
+      await apiRevokeIntegrationToken(revokeTarget._id);
+      dispatch(toastSuccess('Token revoked.'));
+      setRevokeTarget(null);
+      fetchTokens();
+    } catch {
+      dispatch(toastError('Could not revoke token.'));
+    } finally { setActing(false); }
+  };
+
+  const handleRegenerate = async () => {
+    if (!regenTarget) return;
+    setActing(true);
+    try {
+      const { data } = await apiRegenerateIntegrationToken(regenTarget._id);
+      setNewToken(data.data);
+      setRegenTarget(null);
+      fetchTokens();
+    } catch {
+      dispatch(toastError('Could not regenerate token.'));
+    } finally { setActing(false); }
+  };
+
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      dispatch(toastError('Copy failed — please select and copy manually.'));
+    }
+  };
+
+  const activeTokens = tokens.filter(t => !t.revokedAt);
+  const mostRecent   = activeTokens.reduce((best, t) =>
+    (!best || (t.lastUsedAt && new Date(t.lastUsedAt) > new Date(best.lastUsedAt ?? 0))) ? t : best
+  , null);
+
+  return (
+    <div className="space-y-8">
+
+      {/* ── Connect MetaTrader card ── */}
+      <Section
+        title="Connect MetaTrader"
+        desc="Bridge your MT4/MT5 terminal to Tradiary so every trade is logged automatically."
+      >
+        {/* Status line */}
+        <div className="mb-5 flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] px-4 py-3">
+          <div className={`h-2 w-2 rounded-full flex-shrink-0 ${
+            mostRecent?.lastUsedAt ? 'bg-green-500' : 'bg-[var(--text-muted)]'
+          }`} />
+          <p className="text-sm text-[var(--text-muted)]">
+            {mostRecent?.lastUsedAt
+              ? <>Last trade received: <span className="text-[var(--text)] font-medium">
+                  {formatDistanceToNow(new Date(mostRecent.lastUsedAt), { addSuffix: true })}
+                </span></>
+              : 'Not connected yet — generate a token and attach the EA to a chart.'}
+          </p>
+        </div>
+
+        {/* Newly generated raw token — shown once */}
+        {newToken && (
+          <div className="mb-5 rounded-xl border border-[var(--brand-indigo)]/40 bg-[var(--brand-indigo-subtle)] p-4 space-y-3">
+            <div className="flex items-start gap-2">
+              <KeyRound size={16} className="shrink-0 mt-0.5" style={{ color: 'var(--brand-indigo)' }} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-[var(--text)]">Token generated for "{newToken.label}"</p>
+                <p className="mt-0.5 text-xs text-[var(--loss-text)] font-medium">⚠ Copy it now — you won't be able to see it again.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 truncate rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-mono text-[var(--text)] select-all">
+                {newToken.token}
+              </code>
+              <Button
+                size="sm"
+                variant={copied ? 'secondary' : 'primary'}
+                leftIcon={<Copy size={13} />}
+                onClick={() => copyToClipboard(newToken.token)}
+                id="copy-token-btn"
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
+            </div>
+            <Button size="sm" variant="secondary" onClick={() => setNewToken(null)}>Dismiss</Button>
+          </div>
+        )}
+
+        {/* Webhook URL */}
+        <div className="mb-5">
+          <label className="mb-1.5 block text-sm font-medium text-[var(--text)]">Webhook URL</label>
+          <div className="flex items-center gap-2">
+            <Input value={WEBHOOK_URL} readOnly className="flex-1 font-mono text-xs" id="webhook-url" />
+            <Button
+              size="sm"
+              variant="secondary"
+              leftIcon={<Copy size={13} />}
+              onClick={() => copyToClipboard(WEBHOOK_URL)}
+              id="copy-webhook-url-btn"
+            >
+              Copy
+            </Button>
+          </div>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">Paste this into MT5: Tools → Options → Expert Advisors → WebRequest URLs.</p>
+        </div>
+
+        {/* Download EA */}
+        <div className="mb-5">
+          <label className="mb-1.5 block text-sm font-medium text-[var(--text)]">Expert Advisor</label>
+          <a
+            href="/downloads/tradiary-bridge.mq5"
+            download="tradiary-bridge.mq5"
+            id="download-ea-btn"
+            className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-4 py-2 text-sm font-medium text-[var(--text)] hover:border-[var(--brand-indigo)] hover:text-[var(--brand-indigo)] transition-colors"
+          >
+            <Download size={14} /> Download tradiary-bridge.mq5
+          </a>
+        </div>
+
+        {/* Setup steps */}
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+          <p className="text-sm font-semibold text-[var(--text)] mb-3 flex items-center gap-2">
+            <Zap size={14} style={{ color: 'var(--brand-indigo)' }} /> Quick Setup
+          </p>
+          <ol className="space-y-2 text-sm text-[var(--text-muted)]">
+            <li className="flex gap-2"><span className="flex-shrink-0 w-5 h-5 rounded-full bg-[var(--brand-indigo-subtle)] text-[var(--brand-indigo)] text-xs font-bold flex items-center justify-center">1</span>Generate a token below and copy it.</li>
+            <li className="flex gap-2"><span className="flex-shrink-0 w-5 h-5 rounded-full bg-[var(--brand-indigo-subtle)] text-[var(--brand-indigo)] text-xs font-bold flex items-center justify-center">2</span>Download the EA above and place it in your MT5 <code className="text-xs bg-[var(--surface)] px-1 py-0.5 rounded">MQL5/Experts</code> folder.</li>
+            <li className="flex gap-2"><span className="flex-shrink-0 w-5 h-5 rounded-full bg-[var(--brand-indigo-subtle)] text-[var(--brand-indigo)] text-xs font-bold flex items-center justify-center">3</span>In MT5 go to <strong className="text-[var(--text)]">Tools → Options → Expert Advisors</strong>, check "Allow WebRequest for listed URL", and add the webhook URL above.</li>
+            <li className="flex gap-2"><span className="flex-shrink-0 w-5 h-5 rounded-full bg-[var(--brand-indigo-subtle)] text-[var(--brand-indigo)] text-xs font-bold flex items-center justify-center">4</span>Attach the EA to any one chart. Set the <code className="text-xs bg-[var(--surface)] px-1 py-0.5 rounded">InpApiToken</code> input to your generated token.</li>
+            <li className="flex gap-2"><span className="flex-shrink-0 w-5 h-5 rounded-full bg-[var(--brand-indigo-subtle)] text-[var(--brand-indigo)] text-xs font-bold flex items-center justify-center">5</span>Place a trade — it will appear in your journal within seconds. The status line above will show the last received time.</li>
+          </ol>
+        </div>
+      </Section>
+
+      {/* ── Token list ── */}
+      <Section
+        title="API Tokens"
+        desc="Each token authenticates one MT5/MT4 terminal. Revoke any token to immediately block webhook access."
+      >
+        <div className="mb-4">
+          <Button
+            size="sm"
+            leftIcon={<Plus size={14} />}
+            onClick={() => { setLabelInput(''); setShowNewModal(true); }}
+            id="generate-token-btn"
+          >
+            Generate token
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="space-y-2">
+            {[1,2].map(i => <div key={i} className="skeleton h-14 rounded-xl" />)}
+          </div>
+        ) : tokens.length === 0 ? (
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] py-8 text-center text-sm text-[var(--text-muted)]">
+            No tokens yet. Generate one to connect your first terminal.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {tokens.map(token => (
+              <div
+                key={token._id}
+                className={`flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] px-4 py-3 transition-opacity ${
+                  token.revokedAt ? 'opacity-50' : ''
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Terminal size={13} className="shrink-0" style={{ color: 'var(--brand-indigo)' }} />
+                    <p className="text-sm font-medium text-[var(--text)] truncate">{token.label}</p>
+                    {token.revokedAt && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-[var(--loss-subtle)] text-[var(--loss-text)]">Revoked</span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-xs text-[var(--text-muted)] flex items-center gap-1">
+                    <Clock size={10} />
+                    {token.lastUsedAt
+                      ? `Last used ${formatDistanceToNow(new Date(token.lastUsedAt), { addSuffix: true })}`
+                      : 'Never used'}
+                    <span className="mx-1">·</span>
+                    Created {formatDistanceToNow(new Date(token.createdAt), { addSuffix: true })}
+                  </p>
+                </div>
+                {!token.revokedAt && (
+                  <div className="flex items-center gap-1 shrink-0 ml-3">
+                    <button
+                      onClick={() => setRegenTarget(token)}
+                      title="Regenerate token"
+                      aria-label={`Regenerate token for ${token.label}`}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-200)] hover:text-[var(--text)] transition-colors"
+                    >
+                      <RefreshCw size={13} />
+                    </button>
+                    <button
+                      onClick={() => setRevokeTarget(token)}
+                      title="Revoke token"
+                      aria-label={`Revoke token for ${token.label}`}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--loss-subtle)] hover:text-[var(--loss-text)] transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* Generate token modal */}
+      <Modal open={showNewModal} onClose={() => setShowNewModal(false)} title="Generate API Token">
+        <div className="space-y-4">
+          <Field label="Token label (helps you identify which terminal)">
+            <Input
+              value={labelInput}
+              onChange={e => setLabelInput(e.target.value)}
+              placeholder="e.g. MT5 — Main Live Account"
+              className="w-full"
+              id="token-label-input"
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleGenerate(); } }}
+            />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setShowNewModal(false)}>Cancel</Button>
+            <Button size="sm" disabled={generating} onClick={handleGenerate}>
+              {generating ? 'Generating…' : 'Generate'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Revoke confirm modal */}
+      <Modal open={!!revokeTarget} onClose={() => setRevokeTarget(null)} title="Revoke Token">
+        <div className="space-y-4">
+          <div className="rounded-xl border border-[var(--loss)]/30 bg-[var(--loss-subtle)] p-4 text-sm text-[var(--loss-text)]">
+            Revoking <strong>{revokeTarget?.label}</strong> will immediately block all webhook calls using that token.
+            The EA will log 401 errors and stop sending trades until you provide a new token.
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setRevokeTarget(null)}>Cancel</Button>
+            <Button
+              size="sm"
+              disabled={acting}
+              className="bg-[var(--loss)] hover:opacity-90 text-white border-0"
+              onClick={handleRevoke}
+            >
+              {acting ? 'Revoking…' : 'Revoke token'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Regenerate confirm modal */}
+      <Modal open={!!regenTarget} onClose={() => setRegenTarget(null)} title="Regenerate Token">
+        <div className="space-y-4">
+          <p className="text-sm text-[var(--text-muted)]">
+            Regenerating <strong className="text-[var(--text)]">{regenTarget?.label}</strong> will immediately revoke
+            the existing token and issue a new one. Update the EA's <code className="text-xs bg-[var(--surface)] px-1 py-0.5 rounded">InpApiToken</code> input with the new token.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setRegenTarget(null)}>Cancel</Button>
+            <Button size="sm" disabled={acting} onClick={handleRegenerate}>
+              {acting ? 'Regenerating…' : 'Regenerate'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Main SettingsPage
 // ═══════════════════════════════════════════════════════════════════════════════
+
 const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState('profile');
 
   const tabContent = {
-    profile:  <ProfileTab />,
-    security: <SecurityTab />,
-    accounts: <AccountsTab />,
-    data:     <DataTab />,
+    profile:      <ProfileTab />,
+    security:     <SecurityTab />,
+    accounts:     <AccountsTab />,
+    integrations: <IntegrationsTab />,
+    data:         <DataTab />,
   };
 
   return (

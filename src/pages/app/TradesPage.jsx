@@ -9,8 +9,9 @@ import { format } from 'date-fns';
 import {
   Plus, Download, Upload, Trash2, Tag, Search,
   ChevronUp, ChevronDown, ChevronsUpDown,
-  Filter, X, MoreHorizontal,
+  Filter, X, MoreHorizontal, Copy,
 } from 'lucide-react';
+import SourceBadge from '@/components/trades/SourceBadge';
 import {
   fetchTrades, deleteTrade, bulkDeleteTrades, selectTrades,
   selectTradesPagination, selectTradesStatus,
@@ -196,11 +197,22 @@ export default function TradesPage() {
   useEffect(() => {
     const dup = location.state?.duplicate;
     if (!dup) return;
-    const { _id, pnl, rMultiple, createdAt, updatedAt, __v, userId, ...rest } = dup;
+    const { _id, pnl, rMultiple, createdAt, updatedAt, __v, userId, externalId, ...rest } = dup;
     setEditTrade(rest);   // initialData without _id → TradeFormModal treats as new trade
     setShowForm(true);
     window.history.replaceState({}, ''); // clear state so refresh doesn't re-open
   }, []);
+
+  // PWA shortcut: /app/trades?new=1 auto-opens the New Trade modal
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setEditTrade(null);
+      setShowForm(true);
+      // Clean the URL without a re-render loop
+      setSearchParams(p => { p.delete('new'); return p; }, { replace: true });
+    }
+  }, []);
+
 
   const toggleSort = (key) => {
     setFilters(f => ({
@@ -365,7 +377,12 @@ export default function TradesPage() {
                   <td className="px-4 py-3 text-xs text-[var(--color-text-muted)] whitespace-nowrap font-num">
                     {format(new Date(trade.entryDate), 'MMM d, yyyy')}
                   </td>
-                  <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{trade.symbol}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-[var(--color-text-primary)]">{trade.symbol}</span>
+                      <SourceBadge source={trade.source} />
+                    </div>
+                  </td>
                   <td className="px-4 py-3">
                     <Badge variant={trade.direction}>{trade.direction}</Badge>
                   </td>
@@ -393,6 +410,20 @@ export default function TradesPage() {
                   {/* Actions */}
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 hover:opacity-100">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Duplicate: strip server fields so modal opens as a new trade
+                          const { _id, pnl, rMultiple, createdAt, updatedAt, __v, userId, externalId, ...rest } = trade;
+                          setEditTrade(rest);
+                          setShowForm(true);
+                        }}
+                        className="rounded p-1 text-[var(--color-text-muted)] hover:text-[var(--color-brand)] hover:bg-[var(--color-brand-subtle)] transition-colors"
+                        title="Duplicate trade"
+                        aria-label={`Duplicate ${trade.symbol}`}
+                      >
+                        <Copy size={14} />
+                      </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditTrade(trade); setShowForm(true); }}
                         className="rounded p-1 text-[var(--color-text-muted)] hover:text-[var(--color-brand)] hover:bg-[var(--color-brand-subtle)] transition-colors"

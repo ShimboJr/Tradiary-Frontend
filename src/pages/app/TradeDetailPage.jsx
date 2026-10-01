@@ -16,6 +16,7 @@ import { apiListTrades } from '@/api/trades';
 import TradeFormModal from '@/components/trades/TradeFormModal';
 import Lightbox from '@/components/ui/Lightbox';
 import Badge from '@/components/ui/Badge';
+import SourceBadge from '@/components/trades/SourceBadge';
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 
@@ -91,6 +92,7 @@ export default function TradeDetailPage() {
           </Link>
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">{trade.symbol}</h1>
+            <SourceBadge source={trade.source} showLabel />
             <Badge variant={trade.direction}>
               {trade.direction === 'long' ? <TrendingUp size={12} className="inline mr-1" /> : <TrendingDown size={12} className="inline mr-1" />}
               {trade.direction}

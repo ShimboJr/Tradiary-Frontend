@@ -6,14 +6,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
-import { Sun, Moon, LogOut, Settings, ChevronDown, User } from 'lucide-react';
+import { Sun, Moon, LogOut, Settings, ChevronDown, Plus } from 'lucide-react';
 import { toggleTheme, selectTheme } from '@/features/ui/uiSlice';
 import { logout, selectCurrentUser } from '@/features/auth/authSlice';
 import { toastSuccess } from '@/features/ui/toastSlice';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import Logo from '@/components/ui/Logo';
 
-const Topbar = () => {
+const Topbar = ({ onNewTrade }) => {
   const dispatch  = useDispatch();
   const navigate  = useNavigate();
   const theme     = useSelector(selectTheme);
@@ -55,6 +55,20 @@ const Topbar = () => {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-1">
+        {/* Log Trade shortcut button */}
+        {onNewTrade && (
+          <button
+            id="topbar-new-trade-btn"
+            onClick={onNewTrade}
+            title="Log a Trade  (N)"
+            aria-label="Log a new trade — keyboard shortcut: N"
+            className="hidden sm:flex items-center gap-1.5 rounded-lg bg-[var(--brand-indigo)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-all mr-1"
+          >
+            <Plus size={13} /> Log Trade
+            <kbd className="ml-1 rounded border border-white/30 bg-white/10 px-1 py-0.5 text-[10px] font-mono">N</kbd>
+          </button>
+        )}
+
         {/* Theme toggle */}
         <button
           id="theme-toggle"
