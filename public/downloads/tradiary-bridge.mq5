@@ -16,6 +16,7 @@
 //|     Tradiary → Settings → Integrations.                          |
 //+------------------------------------------------------------------+
 #property copyright "Tradiary"
+#property link      "https://tradairy.vercel.app/"
 #property version   "1.10"
 #property strict
 
