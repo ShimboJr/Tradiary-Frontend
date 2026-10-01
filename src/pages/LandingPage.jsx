@@ -25,6 +25,11 @@ import {
   Moon,
   ChevronDown,
   LayoutDashboard,
+  Plug2,
+  Download,
+  Activity,
+  RefreshCw,
+  Lock,
 } from 'lucide-react';
 import { toggleTheme, selectTheme } from '@/features/ui/uiSlice';
 import { selectCurrentUser, selectBootstrapped, refreshSession } from '@/features/auth/authSlice';
@@ -77,11 +82,45 @@ const FEATURES = [
     badge: 'Tools',
   },
   {
+    icon: Plug2,
+    title: 'MetaTrader 5 Auto-Sync',
+    desc: 'Attach our free EA to any chart and every trade — entry, exit, SL/TP, and P&L — is logged in Tradiary automatically. Zero manual entry.',
+    badge: 'New ✨',
+    highlight: true,
+  },
+  {
     icon: Shield,
     title: 'Completely Free. Always.',
     desc: 'Tradiary is a passion project built to make disciplined trading accessible to everyone, globally. No subscription, no credit card, no catch.',
     badge: 'Free',
-    highlight: true,
+  },
+];
+
+// ── MetaTrader setup steps ────────────────────────────────────────────────────
+const MT_STEPS = [
+  {
+    step: '01',
+    icon: Download,
+    title: 'Download the EA',
+    desc: 'Grab the free Tradiary Bridge EA (.mq5) from Settings → Integrations. One file, no dependencies.',
+  },
+  {
+    step: '02',
+    icon: Plug2,
+    title: 'Attach to any chart',
+    desc: 'Drop the EA onto any one chart in MT5. It monitors all deals globally — you only need it on one chart.',
+  },
+  {
+    step: '03',
+    icon: Lock,
+    title: 'Paste your API token',
+    desc: 'Generate a token in Tradiary → Settings → Integrations and paste it into the EA inputs. Done.',
+  },
+  {
+    step: '04',
+    icon: Activity,
+    title: 'Trade — we do the rest',
+    desc: 'Every trade is captured the instant it executes — entry, exit, SL, TP, and P&L calculated automatically.',
   },
 ];
 
@@ -169,6 +208,14 @@ const LandingPage = () => {
           {/* Desktop nav links */}
           <div className="hidden md:flex items-center gap-6 text-sm text-[var(--text-muted)]">
             <a href="#features" className="hover:text-[var(--text)] transition-colors">Features</a>
+            <a
+              href="#metatrader"
+              className="flex items-center gap-1.5 rounded-full border border-[var(--brand-cyan)]/30 bg-[var(--brand-cyan-subtle)] px-3 py-1 text-xs font-semibold transition-colors hover:border-[var(--brand-cyan)]/60"
+              style={{ color: 'var(--brand-cyan)' }}
+            >
+              <Plug2 size={11} />
+              MT5 Integration
+            </a>
             <a href="#how-it-works" className="hover:text-[var(--text)] transition-colors">How it works</a>
             <a href="#free" className="hover:text-[var(--text)] transition-colors">Pricing</a>
             {user && (
@@ -224,6 +271,9 @@ const LandingPage = () => {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-[var(--border)] bg-[var(--surface)] px-4 py-4 space-y-2 animate-fade-in">
             <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">Features</a>
+            <a href="#metatrader" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-1.5 py-2 text-sm font-semibold" style={{ color: 'var(--brand-cyan)' }}>
+              <Plug2 size={13} /> MT5 Integration
+            </a>
             <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">How it works</a>
             <a href="#free" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">Pricing</a>
             {user && (
@@ -397,6 +447,265 @@ const LandingPage = () => {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* ═══════════════════════════════════════ METATRADER SECTION ═══════ */}
+      <section id="metatrader" className="relative px-4 py-24 sm:px-6 border-t border-[var(--border)] overflow-hidden">
+        {/* Ambient glows */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          <div className="absolute top-1/2 left-0 -translate-y-1/2 h-[600px] w-[600px] rounded-full opacity-[0.06] blur-[130px]" style={{ background: 'var(--brand-indigo)' }} />
+          <div className="absolute top-1/3 right-0 h-[500px] w-[500px] rounded-full opacity-[0.05] blur-[120px]" style={{ background: 'var(--brand-cyan)' }} />
+        </div>
+
+        <div className="mx-auto max-w-6xl relative">
+
+          {/* Section header */}
+          <div className="text-center mb-16">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold"
+                 style={{ borderColor: 'rgba(34,211,238,0.3)', background: 'rgba(34,211,238,0.08)', color: 'var(--brand-cyan)' }}>
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--brand-cyan)', animation: 'ping 1.5s cubic-bezier(0,0,0.2,1) infinite' }} />
+              New — MetaTrader 5 Integration
+            </div>
+            <h2 className="text-3xl font-extrabold font-display sm:text-4xl lg:text-5xl mb-5">
+              Your MT5 trades, journaled{' '}
+              <span style={{ color: 'var(--brand-cyan)' }}>automatically.</span>
+            </h2>
+            <p className="text-[var(--text-muted)] max-w-2xl mx-auto leading-relaxed sm:text-lg">
+              Stop manually logging trades. Our free Expert Advisor bridges MetaTrader 5 directly
+              to Tradiary — every deal captured in real time, including Stop Loss and Take Profit.
+            </p>
+          </div>
+
+          {/* Main feature card */}
+          <div className="rounded-2xl border overflow-hidden mb-16 shadow-[0_32px_80px_rgba(0,0,0,0.45)]"
+               style={{ borderColor: 'var(--border)', background: 'linear-gradient(135deg, var(--surface) 0%, var(--surface-raised) 100%)' }}>
+            <div className="grid lg:grid-cols-2">
+
+              {/* ── Left panel: copy + CTA ── */}
+              <div className="p-8 sm:p-10 flex flex-col justify-center">
+                {/* MT5 identity row */}
+                <div className="mb-7 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl font-black text-sm shadow-lg select-none"
+                       style={{ background: 'linear-gradient(135deg, var(--brand-indigo), var(--brand-cyan))', color: '#fff', letterSpacing: '-0.03em', fontSize: '15px' }}>
+                    MT5
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--brand-cyan)' }}>Tradiary Bridge EA</p>
+                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Expert Advisor v1.2 · Free forever · .mq5</p>
+                  </div>
+                </div>
+
+                <h3 className="text-xl font-bold mb-3 sm:text-2xl leading-snug" style={{ color: 'var(--text)' }}>
+                  Trade in MT5 — journal entries appear in Tradiary instantly.
+                </h3>
+                <p className="text-sm leading-relaxed mb-7" style={{ color: 'var(--text-muted)' }}>
+                  The EA hooks into MT5’s order pipeline. Instant orders, limit orders,
+                  post-fill SL/TP modifications — every event is securely pushed to your
+                  Tradiary account via a personal API token. Zero manual entry.
+                </p>
+
+                {/* Feature pills */}
+                <div className="flex flex-wrap gap-2 mb-8">
+                  {[
+                    { icon: RefreshCw, label: 'Real-time sync' },
+                    { icon: Activity,  label: 'SL & TP captured' },
+                    { icon: Lock,      label: 'Token-secured webhook' },
+                    { icon: Zap,       label: 'Instant & Limit orders' },
+                  ].map(({ icon: PillIcon, label }) => (
+                    <span key={label}
+                      className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+                      style={{ borderColor: 'var(--border)', background: 'var(--surface-100)', color: 'var(--text-muted)' }}>
+                      <PillIcon size={11} style={{ color: 'var(--brand-cyan)' }} />
+                      {label}
+                    </span>
+                  ))}
+                </div>
+
+                {/* CTAs */}
+                <div className="flex flex-wrap gap-3">
+                  <a
+                    href="/downloads/tradiary-bridge.mq5"
+                    download
+                    id="mt-download-ea-btn"
+                    className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 hover:scale-[1.02] active:scale-95"
+                    style={{ background: 'linear-gradient(135deg, var(--brand-indigo) 0%, var(--brand-cyan) 100%)' }}
+                  >
+                    <Download size={15} />
+                    Download Free EA
+                  </a>
+                  <a
+                    href="#metatrader-steps"
+                    id="mt-setup-guide-btn"
+                    className="inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-semibold transition-all duration-200"
+                    style={{ borderColor: 'var(--border)', background: 'var(--surface-200)', color: 'var(--text)' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(91,108,255,0.4)'; e.currentTarget.style.color = 'var(--brand-indigo)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text)'; }}
+                  >
+                    Setup guide ↓
+                  </a>
+                </div>
+              </div>
+
+              {/* ── Right panel: live feed mock ── */}
+              <div className="relative flex flex-col justify-center p-8 sm:p-10 border-t lg:border-t-0 lg:border-l"
+                   style={{ borderColor: 'var(--border)', background: 'linear-gradient(135deg, rgba(91,108,255,0.04), rgba(34,211,238,0.04))' }}>
+
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--text-muted)' }}>Live webhook feed — preview</p>
+
+                {/* Pipeline visualization */}
+                <div className="flex items-center gap-2 mb-5">
+                  <div className="flex h-8 w-14 items-center justify-center rounded-lg border text-[10px] font-bold"
+                       style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--brand-indigo)' }}>
+                    MT5
+                  </div>
+                  <div className="flex-1 flex items-center justify-between px-1">
+                    {[0,1,2,3,4,5].map(i => (
+                      <span key={i}
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{
+                          background: 'var(--brand-cyan)',
+                          animation: `mt-dot-flow 1.8s ${i * 0.3}s infinite`,
+                          opacity: 0,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex h-8 w-20 items-center justify-center rounded-lg border text-[10px] font-bold"
+                       style={{ borderColor: 'rgba(91,108,255,0.3)', background: 'var(--brand-indigo-subtle)', color: 'var(--brand-indigo)' }}>
+                    Tradiary
+                  </div>
+                </div>
+
+                {/* Event log cards */}
+                {[
+                  {
+                    time: '21:16:02',
+                    event: 'trade_open',
+                    symbol: 'XAUUSD.S',
+                    tags: [{ label: 'LONG' }, { label: '@4,174.14' }, { label: 'SL 4,160.00', warn: true }],
+                    accent: 'var(--gain)',
+                  },
+                  {
+                    time: '21:16:45',
+                    event: 'trade_modify',
+                    symbol: 'XAUUSD.S',
+                    tags: [{ label: 'SL → 4,162.50', warn: true }, { label: 'TP → 4,205.00', pos: true }],
+                    accent: 'var(--brand-cyan)',
+                  },
+                  {
+                    time: '21:19:11',
+                    event: 'trade_close',
+                    symbol: 'XAUUSD.S',
+                    tags: [{ label: '@4,171.89' }, { label: 'P&L −4.50', neg: true }],
+                    accent: 'var(--loss)',
+                  },
+                ].map(({ time, event, symbol, tags, accent }, i) => (
+                  <div
+                    key={event + i}
+                    className="mb-2.5 last:mb-0 rounded-xl border px-4 py-3"
+                    style={{
+                      borderColor: 'var(--border)',
+                      background: 'var(--surface)',
+                      animation: `mt-card-in 0.45s ${0.1 + i * 0.15}s both`,
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>{time}</span>
+                      <span className="text-[10px] font-semibold rounded-full px-2 py-0.5"
+                            style={{ color: accent, background: accent + '1a' }}>
+                        {event}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold" style={{ color: 'var(--text)' }}>{symbol}</span>
+                      {tags.map(({ label, warn, pos, neg }) => (
+                        <span key={label} className="text-[10px] font-mono"
+                              style={{ color: warn ? 'var(--loss-text)' : pos ? 'var(--gain-text)' : neg ? 'var(--loss-text)' : 'var(--text-muted)' }}>
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Live status dot */}
+                <div className="mt-5 flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full rounded-full opacity-75"
+                          style={{ background: 'var(--gain)', animation: 'ping 1.5s cubic-bezier(0,0,0.2,1) infinite' }} />
+                    <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: 'var(--gain)' }} />
+                  </span>
+                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Bridge active — listening for deals…</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── 4-step setup guide ── */}
+          <div id="metatrader-steps">
+            <p className="text-center text-xs font-bold uppercase tracking-widest mb-10" style={{ color: 'var(--brand-indigo)' }}>
+              Setup in 4 steps · Under 5 minutes
+            </p>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {MT_STEPS.map(({ step, icon: StepIcon, title, desc }, i) => (
+                <div key={step}
+                  className="group relative rounded-2xl border p-6 transition-all duration-200 hover:shadow-[0_8px_32px_rgba(91,108,255,0.14)]"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(91,108,255,0.4)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+                >
+                  {/* Connector line between cards (hidden on last) */}
+                  {i < 3 && (
+                    <div className="absolute top-10 -right-2.5 hidden lg:block w-5 h-px" style={{ background: 'var(--border)' }} />
+                  )}
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl transition-colors"
+                         style={{ background: 'var(--surface-100)' }}
+                         onMouseEnter={e => { e.currentTarget.style.background = 'var(--brand-indigo-subtle)'; }}
+                         onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-100)'; }}>
+                      <StepIcon size={18} style={{ color: 'var(--text-muted)' }} />
+                    </div>
+                    <span className="text-2xl font-black font-mono" style={{ color: 'var(--border)' }}>{step}</span>
+                  </div>
+                  <h3 className="mb-2 font-semibold" style={{ color: 'var(--text)' }}>{title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>{desc}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Bottom CTA row */}
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <a
+                href="/downloads/tradiary-bridge.mq5"
+                download
+                id="mt-download-ea-btn-2"
+                className="inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 hover:scale-[1.02] active:scale-95"
+                style={{ background: 'linear-gradient(135deg, var(--brand-indigo), var(--brand-cyan))' }}
+              >
+                <Download size={15} />
+                Download the EA — it’s free
+              </a>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Requires MetaTrader 5 · Works with any broker</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Keyframe animations injected inline (no build step needed) */}
+        <style>{`
+          @keyframes mt-dot-flow {
+            0%   { opacity: 0; transform: translateX(-4px); }
+            40%  { opacity: 1; transform: translateX(0); }
+            70%  { opacity: 1; transform: translateX(0); }
+            100% { opacity: 0; transform: translateX(4px); }
+          }
+          @keyframes mt-card-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes ping {
+            75%, 100% { transform: scale(2); opacity: 0; }
+          }
+        `}</style>
       </section>
 
       {/* ═══════════════════════════════════════════════ HOW IT WORKS ══════ */}
