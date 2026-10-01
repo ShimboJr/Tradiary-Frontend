@@ -5,7 +5,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { format } from 'date-fns';
+import { formatDate } from '@/utils/format';
 import {
   Plus, Download, Upload, Trash2, Tag, Search,
   ChevronUp, ChevronDown, ChevronsUpDown,
@@ -375,7 +375,7 @@ export default function TradesPage() {
                     />
                   </td>
                   <td className="px-4 py-3 text-xs text-[var(--color-text-muted)] whitespace-nowrap font-num">
-                    {format(new Date(trade.entryDate), 'MMM d, yyyy')}
+                    {formatDate(trade.entryDate)}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">

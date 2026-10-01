@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { format } from 'date-fns';
+import { formatDate, formatDateTime } from '@/utils/format';
 import {
   ArrowLeft, Edit2, Trash2, Copy, ExternalLink,
   TrendingUp, TrendingDown, Film,
@@ -208,13 +208,13 @@ export default function TradeDetailPage() {
               <div>
                 <p className="text-xs text-[var(--color-text-muted)]">Entry Date</p>
                 <p className="font-num font-medium text-[var(--color-text-primary)] mt-0.5">
-                  {format(new Date(trade.entryDate), 'MMM d, yyyy HH:mm')}
+                  {formatDateTime(trade.entryDate)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-[var(--color-text-muted)]">Exit Date</p>
                 <p className="font-num font-medium text-[var(--color-text-primary)] mt-0.5">
-                  {trade.exitDate ? format(new Date(trade.exitDate), 'MMM d, yyyy HH:mm') : '—'}
+                  {trade.exitDate ? formatDateTime(trade.exitDate) : '—'}
                 </p>
               </div>
               {trade.emotion && (
@@ -318,7 +318,7 @@ export default function TradeDetailPage() {
                     <div className="flex items-center gap-3">
                       <Badge variant={t.direction}>{t.direction}</Badge>
                       <span className="text-xs text-[var(--color-text-muted)] font-num">
-                        {format(new Date(t.entryDate), 'MMM d, yyyy')}
+                        {formatDate(t.entryDate)}
                       </span>
                       <span className="text-xs text-[var(--color-text-secondary)]">@{fmt(t.entryPrice, 4)}</span>
                     </div>
@@ -365,7 +365,7 @@ export default function TradeDetailPage() {
           <div className="card w-full max-w-sm mx-4">
             <p className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Delete this trade?</p>
             <p className="text-sm text-[var(--color-text-muted)] mb-4">
-              {trade.symbol} {trade.direction} on {format(new Date(trade.entryDate), 'MMM d, yyyy')} — this cannot be undone.
+              {trade.symbol} {trade.direction} on {formatDate(trade.entryDate)} — this cannot be undone.
             </p>
             <div className="flex gap-2 justify-end">
               <button

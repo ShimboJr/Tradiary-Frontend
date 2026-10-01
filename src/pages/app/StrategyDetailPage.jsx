@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { format } from 'date-fns';
+import { formatDate } from '@/utils/format';
 import { ArrowLeft, Edit2, CheckCircle, Circle, TrendingUp, TrendingDown } from 'lucide-react';
 import {
   fetchStrategy, fetchStrategyTrades, selectStrategy,
@@ -157,7 +157,7 @@ export default function StrategyDetailPage() {
                     <Badge variant={t.direction}>{t.direction}</Badge>
                     <span className="text-sm font-semibold text-[var(--color-text-primary)]">{t.symbol}</span>
                     <span className="text-xs text-[var(--color-text-muted)] font-num">
-                      {format(new Date(t.entryDate), 'MMM d')}
+                      {formatDate(t.entryDate, undefined, { month: 'short', day: 'numeric' })}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
