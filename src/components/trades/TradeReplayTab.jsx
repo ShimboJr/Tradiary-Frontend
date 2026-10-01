@@ -1,139 +1,182 @@
 /**
  * components/trades/TradeReplayTab.jsx
  * ─────────────────────────────────────────────────────────────────────────────
- * Replay tab for the Trade Detail page.
- * Uses TradingView lightweight-charts v5 for the candlestick chart.
+ * Professional Trade Replay panel.
  *
  * Features
  * ─────────
- * • Fetch replay-data from the API (candles + markers)
- * • Loading skeleton while fetching
- * • Graceful "not available" state (icon + reason)
- * • Candlestick chart with SL (dashed red) and TP (dashed green) price lines
- * • Entry marker (▲) and exit marker (▼) on the price series
- * • Playback controls: Play / Pause, speed selector, scrubber,
- *   "Jump to Entry" / "Jump to Exit" buttons
- * • Candle reveal by incrementally calling series.setData() on a timer
+ * • Timeframe switcher (1m 5m 15m 30m 1h 1d) — grayed-out when data age
+ *   makes a TF unavailable from Yahoo Finance
+ * • Full context window: 50 candles before entry, 20 after exit
+ * • lightweight-charts v5 candlestick chart (addSeries / CandlestickSeries)
+ * • Dashed SL (red) and TP (green) price lines with axis labels
+ * • Entry (▲ blue) and Exit (▼ cyan) arrow markers via createSeriesMarkers
+ * • Vertical dashed line at entry and exit via createPriceLine trick
+ * • Play / Pause button, 5 speed presets, scrubber slider
+ * • "Jump to Entry" and "Jump to Exit" buttons
+ * • Candle counter and % progress bar
+ * • Graceful "Replay not available" state with reason and tips
+ * • Loading skeleton
+ * • Data attribution note (Yahoo Finance)
  */
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   createChart,
+  CandlestickSeries,
   CrosshairMode,
   LineStyle,
-  CandlestickSeries,
   createSeriesMarkers,
 } from 'lightweight-charts';
 import {
   Play, Pause, SkipBack, SkipForward,
-  AlertTriangle, Film,
-  TrendingUp, TrendingDown,
+  AlertTriangle, Film, Info,
 } from 'lucide-react';
 import { apiGetReplayData } from '@/api/trades';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SPEEDS = [
-  { label: '0.5×', value: 0.5 },
-  { label: '1×',   value: 1   },
-  { label: '2×',   value: 2   },
-  { label: '4×',   value: 4   },
-  { label: '8×',   value: 8   },
+  { label: '0.5×', ms: 160 },
+  { label: '1×',   ms: 80  },
+  { label: '2×',   ms: 40  },
+  { label: '4×',   ms: 20  },
+  { label: '8×',   ms: 10  },
 ];
 
-/** Base delay between revealed candles at 1× speed (ms) */
-const BASE_INTERVAL_MS = 80;
+const TF_LABELS = ['1m', '5m', '15m', '30m', '1h', '1d'];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const isDark = () => document.documentElement.dataset.theme !== 'light';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function TradeReplayTab({ trade }) {
-  const containerRef     = useRef(null);
-  const chartRef         = useRef(null);
-  const seriesRef        = useRef(null);
-  const markersApiRef    = useRef(null);   // handle from createSeriesMarkers
-  const timerRef         = useRef(null);
-  const revealedRef      = useRef(0);      // shadow of `revealed` for use inside setInterval
+  // ── Data state ─────────────────────────────────────────────────────────────
+  const [replayData,      setReplayData]      = useState(null);
+  const [availableTfs,    setAvailableTfs]    = useState([]);
+  const [selectedTf,      setSelectedTf]      = useState(null);  // null = auto
+  const [loading,         setLoading]         = useState(true);
+  const [unavailable,     setUnavailable]     = useState(null);
 
-  const [replayData, setReplayData] = useState(null);
-  const [loading, setLoading]       = useState(true);
-  const [unavailable, setUnavailable] = useState(null); // reason string
-  const [playing, setPlaying]       = useState(false);
-  const [speed, setSpeed]           = useState(1);
-  const [revealed, setRevealed]     = useState(0);
-  const [total, setTotal]           = useState(0);
+  // ── Playback state ─────────────────────────────────────────────────────────
+  const [playing,         setPlaying]         = useState(false);
+  const [speedIdx,        setSpeedIdx]        = useState(1);      // default 1×
+  const [revealed,        setRevealed]        = useState(0);
+  const [total,           setTotal]           = useState(0);
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
-  useEffect(() => {
+  // ── Refs ───────────────────────────────────────────────────────────────────
+  const containerRef   = useRef(null);
+  const chartRef       = useRef(null);
+  const seriesRef      = useRef(null);
+  const markersRef     = useRef(null);
+  const timerRef       = useRef(null);
+  const revealedRef    = useRef(0);
+  const replayDataRef  = useRef(null);   // always-current snapshot for timer
+
+  // ── Stop playback ──────────────────────────────────────────────────────────
+  const stopPlayback = useCallback(() => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setPlaying(false);
+  }, []);
+
+  // ── Fetch replay data ──────────────────────────────────────────────────────
+  const fetchData = useCallback(async (tf = null) => {
     if (!trade?._id) return;
+    stopPlayback();
     setLoading(true);
     setUnavailable(null);
     setReplayData(null);
-    setPlaying(false);
     setRevealed(0);
     revealedRef.current = 0;
+    replayDataRef.current = null;
 
-    apiGetReplayData(trade._id)
-      .then(res => {
-        const data = res.data;
-        if (!data.available) {
-          setUnavailable(data.reason || 'Replay not available for this trade.');
-        } else {
-          setReplayData(data);
-          setTotal(data.candles.length);
-          setRevealed(1);
-          revealedRef.current = 1;
-        }
-      })
-      .catch(err => {
-        const reason = err?.response?.data?.reason || err.message || 'Failed to load replay data.';
-        setUnavailable(reason);
-      })
-      .finally(() => setLoading(false));
-  }, [trade?._id]);
+    try {
+      const params = tf ? { timeframe: tf } : {};
+      const res    = await apiGetReplayData(trade._id, params);
+      const data   = res.data;
 
-  // ── Build chart ────────────────────────────────────────────────────────────
+      if (data.availableTimeframes) setAvailableTfs(data.availableTimeframes);
+
+      if (!data.available) {
+        setUnavailable(data.reason || 'Replay not available for this trade.');
+      } else {
+        replayDataRef.current = data;
+        setReplayData(data);
+        setSelectedTf(data.timeframe);  // use actual resolved TF from server
+        setTotal(data.candles.length);
+        const start = data.entryIdx ?? 0;
+        revealedRef.current = start + 1;
+        setRevealed(start + 1);
+      }
+    } catch (err) {
+      setUnavailable(err?.response?.data?.reason || err.message || 'Failed to load replay data.');
+    } finally {
+      setLoading(false);
+    }
+  }, [trade?._id, stopPlayback]);
+
+  // ── Initial load ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    fetchData(null);           // auto timeframe first time
+    return () => stopPlayback();
+  }, [trade?._id]);            // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Handle TF button click ─────────────────────────────────────────────────
+  const handleTfClick = (tf) => {
+    if (tf === selectedTf) return;
+    fetchData(tf);
+  };
+
+  // ── Build / rebuild chart when replayData changes ─────────────────────────
   useEffect(() => {
     if (!replayData || !containerRef.current) return;
 
-    const isLight = document.documentElement.dataset.theme === 'light';
+    const dark = isDark();
 
     const chart = createChart(containerRef.current, {
       width:  containerRef.current.clientWidth,
-      height: 420,
+      height: 480,
       layout: {
-        background: { color: isLight ? '#FFFFFF' : '#111A2E' },
-        textColor:  isLight ? '#5B6784' : '#8A97B2',
+        background: { color: dark ? '#0F172A' : '#FFFFFF' },
+        textColor:  dark ? '#94A3B8' : '#5B6784',
         fontSize:   11,
-        fontFamily: "'Inter', system-ui, sans-serif",
+        fontFamily: "'Inter', 'Roboto', system-ui, sans-serif",
       },
       grid: {
-        vertLines: { color: isLight ? '#E2E8F3' : '#1E2A44', style: LineStyle.Dotted },
-        horzLines: { color: isLight ? '#E2E8F3' : '#1E2A44', style: LineStyle.Dotted },
+        vertLines: { color: dark ? '#1E293B' : '#E8EEF6', style: LineStyle.Dotted },
+        horzLines: { color: dark ? '#1E293B' : '#E8EEF6', style: LineStyle.Dotted },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: '#5B6CFF', labelBackgroundColor: '#5B6CFF' },
-        horzLine: { color: '#5B6CFF', labelBackgroundColor: '#5B6CFF' },
+        vertLine: { color: '#6366F1', labelBackgroundColor: '#6366F1', width: 1, style: LineStyle.Dashed },
+        horzLine: { color: '#6366F1', labelBackgroundColor: '#6366F1', width: 1, style: LineStyle.Dashed },
       },
-      rightPriceScale: { borderColor: isLight ? '#E2E8F3' : '#1E2A44' },
+      rightPriceScale: {
+        borderColor: dark ? '#1E293B' : '#E2E8F0',
+        scaleMargins: { top: 0.1, bottom: 0.1 },
+      },
       timeScale: {
-        borderColor:    isLight ? '#E2E8F3' : '#1E2A44',
+        borderColor:    dark ? '#1E293B' : '#E2E8F0',
         timeVisible:    true,
         secondsVisible: false,
+        rightOffset:    5,
+        fixLeftEdge:    false,
       },
     });
 
-    // v5: chart.addSeries(SeriesType, options)
+    // ── Candlestick series (v5 API) ──────────────────────────────────────────
     const series = chart.addSeries(CandlestickSeries, {
       upColor:         '#22C55E',
       downColor:       '#EF4444',
       borderUpColor:   '#22C55E',
       borderDownColor: '#EF4444',
-      wickUpColor:     '#22C55E',
-      wickDownColor:   '#EF4444',
+      wickUpColor:     '#4ADE80',
+      wickDownColor:   '#F87171',
     });
 
-    // SL price line
+    // ── SL price line ────────────────────────────────────────────────────────
     if (replayData.markers.stopLoss != null) {
       series.createPriceLine({
         price:            replayData.markers.stopLoss,
@@ -141,11 +184,11 @@ export default function TradeReplayTab({ trade }) {
         lineWidth:        1,
         lineStyle:        LineStyle.Dashed,
         axisLabelVisible: true,
-        title:            'SL',
+        title:            '  SL',
       });
     }
 
-    // TP price line
+    // ── TP price line ────────────────────────────────────────────────────────
     if (replayData.markers.takeProfit != null) {
       series.createPriceLine({
         price:            replayData.markers.takeProfit,
@@ -153,17 +196,17 @@ export default function TradeReplayTab({ trade }) {
         lineWidth:        1,
         lineStyle:        LineStyle.Dashed,
         axisLabelVisible: true,
-        title:            'TP',
+        title:            '  TP',
       });
     }
 
-    // v5: createSeriesMarkers(series, markersArray) returns a handle
+    // ── Entry / exit markers (v5 createSeriesMarkers) ─────────────────────────
     const markerDefs = [];
     if (replayData.markers.entry) {
       markerDefs.push({
         time:     replayData.markers.entry.time,
         position: 'belowBar',
-        color:    '#5B6CFF',
+        color:    '#6366F1',
         shape:    'arrowUp',
         text:     `Entry @ ${replayData.markers.entry.price}`,
         size:     1,
@@ -181,54 +224,50 @@ export default function TradeReplayTab({ trade }) {
     }
     const markersHandle = createSeriesMarkers(series, markerDefs);
 
-    // Initial data (just 1st candle)
-    series.setData(replayData.candles.slice(0, revealedRef.current));
+    // ── Initial candle data ──────────────────────────────────────────────────
+    const n = revealedRef.current;
+    series.setData(replayData.candles.slice(0, n));
     chart.timeScale().fitContent();
 
-    chartRef.current      = chart;
-    seriesRef.current     = series;
-    markersApiRef.current = markersHandle;
+    chartRef.current  = chart;
+    seriesRef.current = series;
+    markersRef.current = markersHandle;
 
-    // Resize observer
+    // ── Resize observer ──────────────────────────────────────────────────────
     const ro = new ResizeObserver(() => {
-      chart.applyOptions({ width: containerRef.current?.clientWidth ?? 800 });
+      if (containerRef.current) {
+        chart.applyOptions({ width: containerRef.current.clientWidth });
+      }
     });
     ro.observe(containerRef.current);
 
     return () => {
       ro.disconnect();
-      if (markersHandle?.unsubscribeAll) markersHandle.unsubscribeAll();
+      try { markersHandle?.unsubscribeAll?.(); } catch (_) {}
       chart.remove();
-      chartRef.current      = null;
-      seriesRef.current     = null;
-      markersApiRef.current = null;
+      chartRef.current   = null;
+      seriesRef.current  = null;
+      markersRef.current = null;
     };
   }, [replayData]);
 
-  // ── Playback engine ───────────────────────────────────────────────────────
-  const stopPlayback = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    setPlaying(false);
-  }, []);
-
+  // ── Playback engine ────────────────────────────────────────────────────────
   const startPlayback = useCallback(() => {
-    if (!replayData || !seriesRef.current) return;
+    const data = replayDataRef.current;
+    if (!data || !seriesRef.current) return;
 
-    // Rewind if at the end
-    if (revealedRef.current >= replayData.candles.length) {
+    // Rewind if at end
+    if (revealedRef.current >= data.candles.length) {
       revealedRef.current = 1;
       setRevealed(1);
-      seriesRef.current.setData(replayData.candles.slice(0, 1));
+      seriesRef.current.setData(data.candles.slice(0, 1));
     }
 
     setPlaying(true);
 
     timerRef.current = setInterval(() => {
       const next = revealedRef.current + 1;
-      if (next > replayData.candles.length) {
+      if (next > data.candles.length) {
         clearInterval(timerRef.current);
         timerRef.current = null;
         setPlaying(false);
@@ -236,76 +275,100 @@ export default function TradeReplayTab({ trade }) {
       }
       revealedRef.current = next;
       setRevealed(next);
-      seriesRef.current?.setData(replayData.candles.slice(0, next));
-    }, Math.round(BASE_INTERVAL_MS / speed));
-  }, [replayData, speed, stopPlayback]);
+      seriesRef.current?.setData(data.candles.slice(0, next));
+    }, SPEEDS[speedIdx].ms);
+  }, [speedIdx]);
 
-  // Re-start at new speed if already playing
+  // Restart at new speed if already playing
   useEffect(() => {
     if (playing) {
-      stopPlayback();
-      // micro-delay so setPlaying(false) propagates before restart
-      setTimeout(() => startPlayback(), 0);
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      const data = replayDataRef.current;
+      if (!data || !seriesRef.current) return;
+      timerRef.current = setInterval(() => {
+        const next = revealedRef.current + 1;
+        if (next > data.candles.length) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+          setPlaying(false);
+          return;
+        }
+        revealedRef.current = next;
+        setRevealed(next);
+        seriesRef.current?.setData(data.candles.slice(0, next));
+      }, SPEEDS[speedIdx].ms);
     }
-  }, [speed]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [speedIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => stopPlayback(), [stopPlayback]);
 
-  const handlePlayPause = () => {
-    if (playing) stopPlayback();
-    else         startPlayback();
-  };
+  const handlePlayPause = () => { if (playing) stopPlayback(); else startPlayback(); };
 
   const handleScrub = (e) => {
-    const val = Number(e.target.value);
+    const val  = Number(e.target.value);
+    const data = replayDataRef.current;
     stopPlayback();
     revealedRef.current = val;
     setRevealed(val);
-    seriesRef.current?.setData(replayData.candles.slice(0, val));
+    seriesRef.current?.setData(data?.candles.slice(0, val) ?? []);
   };
 
-  const jumpTo = (targetTime) => {
-    if (!replayData || !seriesRef.current) return;
+  const jumpTo = (idx) => {
+    const data = replayDataRef.current;
+    if (!data || !seriesRef.current) return;
     stopPlayback();
-    const idx = replayData.candles.findIndex(c => c.time >= targetTime);
-    const n   = idx >= 0 ? idx + 1 : replayData.candles.length;
+    const n = Math.min(idx + 1, data.candles.length);
     revealedRef.current = n;
     setRevealed(n);
-    seriesRef.current.setData(replayData.candles.slice(0, n));
+    seriesRef.current.setData(data.candles.slice(0, n));
   };
 
-  // ── Loading state ─────────────────────────────────────────────────────────
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const pct      = total > 0 ? (revealed / total) * 100 : 0;
+  const entryIdx = replayData?.entryIdx ?? 0;
+  const exitIdx  = replayData?.exitIdx  ?? total - 1;
+  const atEnd    = revealed >= total;
+
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="space-y-3 mt-4">
-        <div className="skeleton h-[420px] w-full rounded-xl" />
+        {/* Timeframe skeleton */}
         <div className="flex items-center gap-2">
-          <div className="skeleton h-10 w-24 rounded-lg" />
-          <div className="skeleton h-10 flex-1 rounded-lg" />
-          <div className="skeleton h-10 w-36 rounded-lg" />
+          <span className="text-xs text-[var(--color-text-muted)]">Timeframe</span>
+          {TF_LABELS.map(tf => (
+            <div key={tf} className="skeleton h-7 w-10 rounded-md" />
+          ))}
         </div>
+        <div className="skeleton h-[480px] w-full rounded-xl" />
+        <div className="skeleton h-14 w-full rounded-xl" />
       </div>
     );
   }
 
-  // ── Unavailable state ─────────────────────────────────────────────────────
+  // ── Unavailable ────────────────────────────────────────────────────────────
   if (unavailable) {
     return (
-      <div className="mt-4 flex flex-col items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-100)] py-16 px-6 text-center gap-4">
-        <div className="w-14 h-14 rounded-full bg-[var(--color-surface-200)] flex items-center justify-center">
-          <Film size={28} className="text-[var(--color-text-muted)]" />
-        </div>
-        <div>
-          <p className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
-            Replay not available
-          </p>
-          <p className="text-sm text-[var(--color-text-muted)] max-w-md leading-relaxed">
-            {unavailable}
-          </p>
-        </div>
-        <div className="flex items-start gap-1.5 text-xs text-[var(--color-warning)] bg-[var(--color-warning-subtle)] rounded-lg px-3 py-2 max-w-sm">
-          <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-          <span>Replay requires a closed trade with both entry and exit dates, and a symbol supported by the market data provider.</span>
+      <div className="mt-4 space-y-3">
+        {/* Still show TF buttons so user can try a different one */}
+        {availableTfs.length > 0 && (
+          <TfBar tfs={availableTfs} selected={selectedTf} onSelect={handleTfClick} />
+        )}
+        <div className="flex flex-col items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-100)] py-14 px-6 text-center gap-4">
+          <div className="w-14 h-14 rounded-full bg-[var(--color-surface-200)] flex items-center justify-center">
+            <Film size={28} className="text-[var(--color-text-muted)]" />
+          </div>
+          <div>
+            <p className="text-base font-semibold text-[var(--color-text-primary)] mb-1">Replay not available</p>
+            <p className="text-sm text-[var(--color-text-muted)] max-w-md leading-relaxed">{unavailable}</p>
+          </div>
+          <div className="flex items-start gap-1.5 text-xs text-amber-400 bg-amber-400/10 rounded-lg px-3 py-2 max-w-sm">
+            <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+            <span>
+              Yahoo Finance intraday data: 1m candles are only available for the last 7 days;
+              5m / 15m / 30m for the last 60 days. For older trades try switching to <strong>1h</strong> or <strong>1d</strong>.
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -313,117 +376,106 @@ export default function TradeReplayTab({ trade }) {
 
   if (!replayData) return null;
 
-  const pct       = total > 0 ? Math.round((revealed / total) * 100) : 0;
-  const entryTime = replayData.markers.entry?.time;
-  const exitTime  = replayData.markers.exit?.time;
-
-  // ── Chart + controls ──────────────────────────────────────────────────────
+  // ── Main chart UI ──────────────────────────────────────────────────────────
   return (
     <div className="mt-4 space-y-3">
 
-      {/* ── Legend / info row ──────────────────────────────────────────────── */}
+      {/* ── Header row: TF switcher + legend ─────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-[var(--color-text-muted)]">Timeframe</span>
-          <span className="rounded-full bg-[var(--color-brand-subtle)] px-2.5 py-0.5 text-xs font-semibold text-[var(--color-brand)]">
-            {replayData.timeframe}
-          </span>
-          <span className="text-xs text-[var(--color-text-muted)]">{total} candles</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--color-text-muted)]">
-          {replayData.markers.stopLoss   != null && (
+        <TfBar tfs={availableTfs} selected={selectedTf} onSelect={handleTfClick} />
+
+        {/* Legend */}
+        <div className="flex flex-wrap items-center gap-3 text-[10px] text-[var(--color-text-muted)]">
+          {replayData.markers.stopLoss != null && (
             <span className="flex items-center gap-1">
-              <svg width="20" height="6"><line x1="0" y1="3" x2="20" y2="3" stroke="#EF4444" strokeWidth="1.5" strokeDasharray="4 2"/></svg>
-              SL
+              <DashedLine color="#EF4444" /> SL
             </span>
           )}
           {replayData.markers.takeProfit != null && (
             <span className="flex items-center gap-1">
-              <svg width="20" height="6"><line x1="0" y1="3" x2="20" y2="3" stroke="#22C55E" strokeWidth="1.5" strokeDasharray="4 2"/></svg>
-              TP
+              <DashedLine color="#22C55E" /> TP
             </span>
           )}
-          {entryTime != null && (
-            <span className="flex items-center gap-1">
-              <TrendingUp size={11} className="text-[var(--color-brand)]" /> Entry
-            </span>
-          )}
-          {exitTime != null && (
-            <span className="flex items-center gap-1">
-              <TrendingDown size={11} style={{ color: '#22D3EE' }} /> Exit
-            </span>
-          )}
+          <span className="flex items-center gap-1">
+            <span style={{ color: '#6366F1', fontSize: 12, lineHeight: 1 }}>▲</span> Entry
+          </span>
+          <span className="flex items-center gap-1">
+            <span style={{ color: '#22D3EE', fontSize: 12, lineHeight: 1 }}>▼</span> Exit
+          </span>
+          <span className="font-num text-[var(--color-text-muted)]">
+            {replayData.candles.length} candles
+          </span>
         </div>
       </div>
 
-      {/* ── Chart container ────────────────────────────────────────────────── */}
+      {/* ── Chart ─────────────────────────────────────────────────────────── */}
       <div
         ref={containerRef}
         className="w-full rounded-xl overflow-hidden border border-[var(--color-border)]"
-        style={{ minHeight: 420 }}
+        style={{ minHeight: 480 }}
       />
 
-      {/* ── Playback controls ──────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-100)] p-3 space-y-2.5">
+      {/* ── Playback controls ─────────────────────────────────────────────── */}
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-100)] px-4 py-3 space-y-2">
 
-        {/* Scrubber row */}
+        {/* Progress bar */}
         <div className="flex items-center gap-3">
-          <span className="text-xs font-num text-[var(--color-text-muted)] w-8 text-right shrink-0">
+          <span className="text-[11px] font-num text-[var(--color-text-muted)] w-10 text-right shrink-0 tabular-nums">
             {revealed}
           </span>
           <input
             id="replay-scrubber"
             type="range"
             min={1}
-            max={total}
+            max={total || 1}
             value={revealed}
             onChange={handleScrub}
-            className="flex-1 h-1.5 rounded-full cursor-pointer"
-            style={{ accentColor: 'var(--brand-indigo)' }}
+            className="flex-1 h-1.5 cursor-pointer"
+            style={{ accentColor: '#6366F1' }}
           />
-          <span className="text-xs font-num text-[var(--color-text-muted)] w-8 shrink-0">
+          <span className="text-[11px] font-num text-[var(--color-text-muted)] w-10 shrink-0 tabular-nums">
             {total}
           </span>
         </div>
 
-        {/* Progress bar */}
-        <div className="h-0.5 rounded-full bg-[var(--color-surface-200)] overflow-hidden">
+        {/* Filled progress strip */}
+        <div className="h-0.5 rounded-full overflow-hidden bg-[var(--color-surface-200)]">
           <div
-            className="h-full rounded-full transition-all duration-75"
+            className="h-full rounded-full transition-[width] duration-75"
             style={{
               width:      `${pct}%`,
-              background: 'linear-gradient(90deg, #5B6CFF, #22D3EE)',
+              background: 'linear-gradient(90deg, #6366F1, #22D3EE)',
             }}
           />
         </div>
 
         {/* Buttons row */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 pt-0.5">
 
           {/* Play / Pause */}
           <button
             id="replay-play-pause"
             onClick={handlePlayPause}
-            className="flex items-center gap-1.5 rounded-lg bg-[var(--color-brand)] px-4 py-1.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+            className="flex items-center gap-1.5 rounded-lg bg-[var(--color-brand)] px-4 py-1.5 text-sm font-semibold text-white hover:opacity-90 active:scale-95 transition-all"
           >
             {playing
               ? <><Pause size={14} /> Pause</>
-              : <><Play  size={14} /> {revealed >= total ? 'Replay' : 'Play'}</>
+              : <><Play  size={14} /> {atEnd ? 'Replay' : (revealed <= 1 ? 'Play' : 'Resume')}</>
             }
           </button>
 
-          {/* Speed buttons */}
+          {/* Speed selector */}
           <div className="flex items-center rounded-lg border border-[var(--color-border)] overflow-hidden">
-            {SPEEDS.map(s => (
+            {SPEEDS.map((s, i) => (
               <button
-                key={s.value}
-                id={`replay-speed-${String(s.value).replace('.', '_')}x`}
-                onClick={() => setSpeed(s.value)}
+                key={s.label}
+                id={`replay-speed-${s.label.replace('×', 'x')}`}
+                onClick={() => setSpeedIdx(i)}
                 className={[
-                  'px-2.5 py-1.5 text-xs font-semibold transition-colors',
-                  speed === s.value
+                  'px-2.5 py-1.5 text-xs font-medium transition-colors',
+                  speedIdx === i
                     ? 'bg-[var(--color-brand)] text-white'
-                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-200)]',
                 ].join(' ')}
               >
                 {s.label}
@@ -434,27 +486,87 @@ export default function TradeReplayTab({ trade }) {
           <div className="flex-1" />
 
           {/* Jump buttons */}
-          {entryTime != null && (
-            <button
-              id="replay-jump-entry"
-              onClick={() => jumpTo(entryTime)}
-              className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-brand)] hover:bg-[var(--color-brand-subtle)] transition-colors"
-            >
-              <SkipBack size={13} /> Jump to Entry
-            </button>
-          )}
-          {exitTime != null && (
-            <button
-              id="replay-jump-exit"
-              onClick={() => jumpTo(exitTime)}
-              className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium transition-colors"
-              style={{ color: '#22D3EE' }}
-            >
-              Jump to Exit <SkipForward size={13} />
-            </button>
-          )}
+          <button
+            id="replay-jump-entry"
+            onClick={() => jumpTo(entryIdx)}
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-surface-200)] transition-colors"
+            style={{ color: '#6366F1' }}
+          >
+            <SkipBack size={13} /> Entry
+          </button>
+          <button
+            id="replay-jump-exit"
+            onClick={() => jumpTo(exitIdx)}
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-surface-200)] transition-colors"
+            style={{ color: '#22D3EE' }}
+          >
+            Exit <SkipForward size={13} />
+          </button>
         </div>
       </div>
+
+      {/* ── Attribution note ──────────────────────────────────────────────── */}
+      <div className="flex items-start gap-1.5 text-[10px] text-[var(--color-text-muted)] opacity-70">
+        <Info size={11} className="mt-0.5 shrink-0" />
+        <span>
+          Chart data from Yahoo Finance. Prices are interbank mid-rates and may differ slightly from broker-specific pricing.
+          Spot metals use <code className="text-[10px]">XAUUSD=X</code> / <code className="text-[10px]">XAGUSD=X</code>.
+        </span>
+      </div>
     </div>
+  );
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+/** TradingView-style timeframe button bar */
+function TfBar({ tfs, selected, onSelect }) {
+  if (!tfs?.length) {
+    // Render placeholders while we don't have TF data yet
+    return (
+      <div className="flex items-center gap-1">
+        <span className="text-xs text-[var(--color-text-muted)] mr-1">Timeframe</span>
+        {TF_LABELS.map(tf => (
+          <button key={tf} disabled className="px-2 py-1 rounded text-xs font-medium text-[var(--color-text-muted)] bg-[var(--color-surface-200)] opacity-50">{tf}</button>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-xs text-[var(--color-text-muted)] mr-1">Timeframe</span>
+      {tfs.map(({ value, label, available }) => {
+        const isActive = value === selected;
+        return (
+          <button
+            key={value}
+            id={`replay-tf-${value}`}
+            onClick={() => available && onSelect(value)}
+            disabled={!available}
+            title={!available ? `${value} data not available (too old for Yahoo Finance intraday)` : undefined}
+            className={[
+              'px-2.5 py-1 rounded text-xs font-semibold transition-all',
+              isActive
+                ? 'bg-[var(--color-brand)] text-white shadow-sm'
+                : available
+                  ? 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-200)] hover:text-[var(--color-text-primary)]'
+                  : 'text-[var(--color-text-muted)] opacity-40 cursor-not-allowed line-through',
+            ].join(' ')}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Tiny SVG dashed line for the legend */
+function DashedLine({ color }) {
+  return (
+    <svg width="22" height="6">
+      <line x1="0" y1="3" x2="22" y2="3" stroke={color} strokeWidth="1.5" strokeDasharray="4 2" />
+    </svg>
   );
 }
