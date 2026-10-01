@@ -17,7 +17,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Tradiary"
 #property link      "https://tradairy.vercel.app/"
-#property version   "1.10"
+#property version   "1.20"
 #property strict
 
 //--- Inputs
@@ -26,6 +26,12 @@ input string InpApiToken = "";
 
 //--- Queue of JSON payloads waiting to be sent
 string g_queue[];
+
+//--- Per-position SL/TP tracking (parallel arrays, keyed by position ticket)
+//    Used to detect SL/TP changes made AFTER instant-order execution.
+long   g_trackedTickets[];
+double g_trackedSL[];
+double g_trackedTP[];
 
 //+------------------------------------------------------------------+
 //| OnInit                                                           |
@@ -38,7 +44,7 @@ int OnInit()
       return(INIT_FAILED);
    }
    EventSetTimer(2); // drain queue every 2 seconds
-   Print("Tradiary Bridge v1.1: started. Webhook URL: ", InpApiUrl);
+   Print("Tradiary Bridge v1.2: started. Webhook URL: ", InpApiUrl);
    return(INIT_SUCCEEDED);
 }
 
@@ -59,7 +65,49 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
                          const MqlTradeRequest    &request,
                          const MqlTradeResult     &result)
 {
-   // Only care about completed deals being added to history
+   // ── Handle position modifications (SL/TP changes on instant orders) ────
+   if(trans.type == TRADE_TRANSACTION_POSITION)
+   {
+      long   posTicket = trans.position;
+      if(posTicket <= 0) return;
+      if(!PositionSelectByTicket(posTicket)) return;
+
+      double newSL = PositionGetDouble(POSITION_SL);
+      double newTP = PositionGetDouble(POSITION_TP);
+
+      // Find this ticket in our tracking arrays
+      int idx = -1;
+      int trackedCount = ArraySize(g_trackedTickets);
+      for(int i = 0; i < trackedCount; i++)
+      {
+         if(g_trackedTickets[i] == posTicket) { idx = i; break; }
+      }
+
+      if(idx == -1) return; // not a position we opened this session — ignore
+
+      // Only emit if SL or TP actually changed
+      bool slChanged = (MathAbs(newSL - g_trackedSL[idx]) > 1e-9);
+      bool tpChanged = (MathAbs(newTP - g_trackedTP[idx]) > 1e-9);
+      if(!slChanged && !tpChanged) return;
+
+      // Update cached values
+      g_trackedSL[idx] = newSL;
+      g_trackedTP[idx] = newTP;
+
+      string symbol    = PositionGetString(POSITION_SYMBOL);
+      string ticketStr = IntegerToString(posTicket);
+      datetime now     = TimeCurrent();
+
+      string json = BuildModifyJson(ticketStr, newSL, newTP, symbol, now);
+      if(json == "") return;
+
+      int n = ArraySize(g_queue);
+      ArrayResize(g_queue, n + 1);
+      g_queue[n] = json;
+      return;
+   }
+
+   // ── Only care about completed deals being added to history ───────────────
    if(trans.type != TRADE_TRANSACTION_DEAL_ADD) return;
 
    // Fetch full deal details from history
@@ -110,12 +158,35 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
          sl = PositionGetDouble(POSITION_SL);
          tp = PositionGetDouble(POSITION_TP);
       }
+
+      // ── Begin tracking SL/TP for this position so we can detect ──────────
+      // later modifications (e.g. trader adds SL/TP after instant order fill)
+      int n = ArraySize(g_trackedTickets);
+      ArrayResize(g_trackedTickets, n + 1);
+      ArrayResize(g_trackedSL,      n + 1);
+      ArrayResize(g_trackedTP,      n + 1);
+      g_trackedTickets[n] = posTicket;
+      g_trackedSL[n]      = sl;
+      g_trackedTP[n]      = tp;
    }
    else
    {
       // Position already closed — best available source is the deal record
       sl = HistoryDealGetDouble(trans.deal, DEAL_SL);
       tp = HistoryDealGetDouble(trans.deal, DEAL_TP);
+
+      // ── Remove from tracking once position is closed ──────────────────────
+      int trackedCount = ArraySize(g_trackedTickets);
+      for(int i = 0; i < trackedCount; i++)
+      {
+         if(g_trackedTickets[i] == posTicket)
+         {
+            ArrayRemove(g_trackedTickets, i, 1);
+            ArrayRemove(g_trackedSL,      i, 1);
+            ArrayRemove(g_trackedTP,      i, 1);
+            break;
+         }
+      }
    }
 
    // ── Fees: commission + swap ──────────────────────────────────────────────
@@ -208,6 +279,34 @@ string BuildJson(string eventStr,
       json += ",\"close_time\":\"" + closeTimeStr + "\"";
    }
 
+   json += "}";
+   return json;
+}
+
+//+------------------------------------------------------------------+
+//| BuildModifyJson — lightweight payload for SL/TP modifications    |
+//+------------------------------------------------------------------+
+string BuildModifyJson(string ticket,
+                       double sl,
+                       double tp,
+                       string symbol,
+                       datetime modTime)
+{
+   string timeStr = TimeToString(modTime, TIME_DATE | TIME_SECONDS);
+   StringReplace(timeStr, ".", "-");
+   StringReplace(timeStr, " ", "T");
+   timeStr += "Z";
+
+   int dig = (int)SymbolInfoInteger(symbol, SYMBOL_DIGITS);
+   if(dig <= 0) dig = _Digits;
+
+   string json = "{";
+   json += "\"event\":\"trade_modify\",";
+   json += "\"ticket\":\"" + ticket + "\",";
+   json += "\"symbol\":\"" + symbol + "\",";
+   json += "\"sl\":"  + (sl > 0 ? DoubleToString(sl, dig) : "null") + ",";
+   json += "\"tp\":"  + (tp > 0 ? DoubleToString(tp, dig) : "null") + ",";
+   json += "\"time\":\"" + timeStr + "\"";
    json += "}";
    return json;
 }
