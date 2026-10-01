@@ -24,8 +24,10 @@ import {
   Sun,
   Moon,
   ChevronDown,
+  LayoutDashboard,
 } from 'lucide-react';
 import { toggleTheme, selectTheme } from '@/features/ui/uiSlice';
+import { selectCurrentUser } from '@/features/auth/authSlice';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
 
@@ -119,9 +121,11 @@ const SAMPLE_TRADES = [
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+
 const LandingPage = () => {
   const dispatch = useDispatch();
   const theme    = useSelector(selectTheme);
+  const user     = useSelector(selectCurrentUser);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -156,6 +160,17 @@ const LandingPage = () => {
             <a href="#features" className="hover:text-[var(--text)] transition-colors">Features</a>
             <a href="#how-it-works" className="hover:text-[var(--text)] transition-colors">How it works</a>
             <a href="#free" className="hover:text-[var(--text)] transition-colors">Pricing</a>
+            {user && (
+              <Link
+                to="/app/dashboard"
+                id="nav-dashboard-link"
+                className="flex items-center gap-1.5 rounded-lg bg-[var(--brand-indigo-subtle)] px-3 py-1.5 text-xs font-semibold transition-all hover:bg-[var(--brand-indigo)] hover:text-white"
+                style={{ color: 'var(--brand-indigo)' }}
+              >
+                <LayoutDashboard size={13} />
+                Dashboard
+              </Link>
+            )}
           </div>
 
           {/* Desktop actions */}
@@ -201,6 +216,16 @@ const LandingPage = () => {
             <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">Features</a>
             <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">How it works</a>
             <a href="#free" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">Pricing</a>
+            {user && (
+              <Link
+                to="/app/dashboard"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 py-2 text-sm font-semibold"
+                style={{ color: 'var(--brand-indigo)' }}
+              >
+                <LayoutDashboard size={14} /> Dashboard
+              </Link>
+            )}
             <div className="flex gap-2 pt-2">
               <Link to="/signin" className="flex-1">
                 <Button variant="secondary" size="sm" className="w-full">Sign in</Button>
