@@ -27,7 +27,7 @@ import {
   LayoutDashboard,
 } from 'lucide-react';
 import { toggleTheme, selectTheme } from '@/features/ui/uiSlice';
-import { selectCurrentUser } from '@/features/auth/authSlice';
+import { selectCurrentUser, selectBootstrapped, refreshSession } from '@/features/auth/authSlice';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
 
@@ -126,8 +126,19 @@ const LandingPage = () => {
   const dispatch = useDispatch();
   const theme    = useSelector(selectTheme);
   const user     = useSelector(selectCurrentUser);
+  const bootstrapped = useSelector(selectBootstrapped);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
+  // Bootstrap session silently — ProtectedRoute normally does this,
+  // but on the public landing page it's never mounted, so auth.user stays
+  // null even when the refresh cookie is still valid.
+  useEffect(() => {
+    if (!bootstrapped) {
+      dispatch(refreshSession());
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
