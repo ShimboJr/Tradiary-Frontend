@@ -9,7 +9,6 @@
  *   makes a TF unavailable from Yahoo Finance
  * • Full context window: 50 candles before entry, 20 after exit
  * • lightweight-charts v5 candlestick chart (addSeries / CandlestickSeries)
- * • Dashed SL (red) and TP (green) price lines with axis labels
  * • Entry (▲ blue) and Exit (▼ cyan) arrow markers via createSeriesMarkers
  * • Vertical dashed line at entry and exit via createPriceLine trick
  * • Play / Pause button, 5 speed presets, scrubber slider
@@ -176,29 +175,6 @@ export default function TradeReplayTab({ trade }) {
       wickDownColor:   '#F87171',
     });
 
-    // ── SL price line ────────────────────────────────────────────────────────
-    if (replayData.markers.stopLoss != null) {
-      series.createPriceLine({
-        price:            replayData.markers.stopLoss,
-        color:            '#EF4444',
-        lineWidth:        1,
-        lineStyle:        LineStyle.Dashed,
-        axisLabelVisible: true,
-        title:            '  SL',
-      });
-    }
-
-    // ── TP price line ────────────────────────────────────────────────────────
-    if (replayData.markers.takeProfit != null) {
-      series.createPriceLine({
-        price:            replayData.markers.takeProfit,
-        color:            '#22C55E',
-        lineWidth:        1,
-        lineStyle:        LineStyle.Dashed,
-        axisLabelVisible: true,
-        title:            '  TP',
-      });
-    }
 
     // ── Entry / exit markers (v5 createSeriesMarkers) ─────────────────────────
     const markerDefs = [];
@@ -386,16 +362,6 @@ export default function TradeReplayTab({ trade }) {
 
         {/* Legend */}
         <div className="flex flex-wrap items-center gap-3 text-[10px] text-[var(--color-text-muted)]">
-          {replayData.markers.stopLoss != null && (
-            <span className="flex items-center gap-1">
-              <DashedLine color="#EF4444" /> SL
-            </span>
-          )}
-          {replayData.markers.takeProfit != null && (
-            <span className="flex items-center gap-1">
-              <DashedLine color="#22C55E" /> TP
-            </span>
-          )}
           <span className="flex items-center gap-1">
             <span style={{ color: '#6366F1', fontSize: 12, lineHeight: 1 }}>▲</span> Entry
           </span>
@@ -562,11 +528,3 @@ function TfBar({ tfs, selected, onSelect }) {
   );
 }
 
-/** Tiny SVG dashed line for the legend */
-function DashedLine({ color }) {
-  return (
-    <svg width="22" height="6">
-      <line x1="0" y1="3" x2="22" y2="3" stroke={color} strokeWidth="1.5" strokeDasharray="4 2" />
-    </svg>
-  );
-}
