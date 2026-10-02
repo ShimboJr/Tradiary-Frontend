@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
 //| tradiary-bridge.mq5                                              |
-//| Tradiary MetaTrader 5 Bridge EA  v1.1                           |
+//| Tradiary MetaTrader 5 Bridge EA  v1.3                           |
 //|                                                                  |
 //| Automatically pushes trade open/close events to your Tradiary    |
 //| journal via WebRequest.                                          |
@@ -17,7 +17,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Tradiary"
 #property link      "https://tradairy.vercel.app/"
-#property version   "1.20"
+#property version   "1.30"
 #property strict
 
 //--- Inputs
@@ -33,6 +33,9 @@ long   g_trackedTickets[];
 double g_trackedSL[];
 double g_trackedTP[];
 
+//--- How many days back to scan for missed closed deals on restart
+input int InpHistorySyncDays = 7;
+
 //+------------------------------------------------------------------+
 //| OnInit                                                           |
 //+------------------------------------------------------------------+
@@ -44,7 +47,11 @@ int OnInit()
       return(INIT_FAILED);
    }
    EventSetTimer(2); // drain queue every 2 seconds
-   Print("Tradiary Bridge v1.2: started. Webhook URL: ", InpApiUrl);
+   Print("Tradiary Bridge v1.3: started. Webhook URL: ", InpApiUrl);
+
+   // ── Strategy 4: replay any deals that closed while we were offline ─────────
+   SyncMissedClosedDeals();
+
    return(INIT_SUCCEEDED);
 }
 
@@ -208,6 +215,96 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
    int n = ArraySize(g_queue);
    ArrayResize(g_queue, n + 1);
    g_queue[n] = json;
+}
+
+//+------------------------------------------------------------------+
+//| SyncMissedClosedDeals — called once from OnInit                  |
+//| Scans broker history for the past InpHistorySyncDays days and     |
+//| replays any trade_close events that Tradiary may have missed while |
+//| the EA was not running. The server handles duplicates gracefully  |
+//| via the externalId sparse-unique index (idempotent upsert).       |
+//+------------------------------------------------------------------+
+void SyncMissedClosedDeals()
+{
+   datetime lookbackFrom = TimeCurrent() - (datetime)(InpHistorySyncDays * 24 * 3600);
+   datetime lookbackTo   = TimeCurrent();
+
+   if(!HistorySelect(lookbackFrom, lookbackTo))
+   {
+      Print("Tradiary Bridge: HistorySelect failed — cannot sync missed deals.");
+      return;
+   }
+
+   int total   = HistoryDealsTotal();
+   int enqueued = 0;
+
+   for(int i = 0; i < total; i++)
+   {
+      ulong ticket = HistoryDealGetTicket(i);
+      if(ticket == 0) continue;
+
+      // Only replay closing deals
+      long entry = HistoryDealGetInteger(ticket, DEAL_ENTRY);
+      if(entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_INOUT) continue;
+
+      long   dealType   = HistoryDealGetInteger(ticket, DEAL_TYPE);
+      string symbol     = HistoryDealGetString(ticket,  DEAL_SYMBOL);
+      double dealPrice  = HistoryDealGetDouble(ticket,  DEAL_PRICE);   // open price (best available)
+      double closePrice = dealPrice;                                     // close == same deal price for OUT deals
+      double lots       = HistoryDealGetDouble(ticket,  DEAL_VOLUME);
+      double commission = HistoryDealGetDouble(ticket,  DEAL_COMMISSION);
+      double swap       = HistoryDealGetDouble(ticket,  DEAL_SWAP);
+      double profit     = HistoryDealGetDouble(ticket,  DEAL_PROFIT);
+      long   posTicket  = HistoryDealGetInteger(ticket, DEAL_POSITION_ID);
+      datetime dealTime = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
+
+      // Recover entry (open) price from the matching DEAL_ENTRY_IN deal
+      double entryPrice = 0.0;
+      datetime entryTime = 0;
+      double sl = HistoryDealGetDouble(ticket, DEAL_SL);
+      double tp = HistoryDealGetDouble(ticket, DEAL_TP);
+
+      // Scan history for the corresponding opening deal of this position
+      for(int j = 0; j < total; j++)
+      {
+         ulong t2 = HistoryDealGetTicket(j);
+         if(t2 == 0) continue;
+         if(HistoryDealGetInteger(t2, DEAL_POSITION_ID) != posTicket) continue;
+         if(HistoryDealGetInteger(t2, DEAL_ENTRY) != DEAL_ENTRY_IN)   continue;
+         entryPrice = HistoryDealGetDouble(t2, DEAL_PRICE);
+         entryTime  = (datetime)HistoryDealGetInteger(t2, DEAL_TIME);
+         break;
+      }
+      if(entryPrice <= 0.0) entryPrice = dealPrice; // fallback
+      if(entryTime  == 0)   entryTime  = dealTime;
+
+      string typStr    = (dealType == DEAL_TYPE_BUY) ? "buy" : "sell";
+      string ticketStr = IntegerToString(posTicket);
+
+      double contractSize = SymbolInfoDouble(symbol, SYMBOL_TRADE_CONTRACT_SIZE);
+      if(contractSize <= 0) contractSize = 1.0;
+      double quantity = lots * contractSize;
+
+      // Build the trade_close payload, tagged as a history sync
+      string json = BuildJson("trade_close", ticketStr, symbol, typStr,
+                              lots, quantity, entryPrice,
+                              sl, tp, commission, swap, profit,
+                              entryTime, closePrice, dealTime, entry);
+      // Mark it as a history-sync replay so the server can log/audit it
+      StringReplace(json, "}" , ",\"is_history_sync\":true}");
+
+      if(json == "") continue;
+
+      int n = ArraySize(g_queue);
+      ArrayResize(g_queue, n + 1);
+      g_queue[n] = json;
+      enqueued++;
+   }
+
+   if(enqueued > 0)
+      Print("Tradiary Bridge: queued ", enqueued, " missed close event(s) for history sync.");
+   else
+      Print("Tradiary Bridge: history sync complete — no missed close events found.");
 }
 
 //+------------------------------------------------------------------+
