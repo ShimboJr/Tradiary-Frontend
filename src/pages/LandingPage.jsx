@@ -30,6 +30,13 @@ import {
   Activity,
   RefreshCw,
   Lock,
+  Film,
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  SlidersHorizontal,
+  Target,
 } from 'lucide-react';
 import { toggleTheme, selectTheme } from '@/features/ui/uiSlice';
 import { selectCurrentUser, selectBootstrapped, refreshSession } from '@/features/auth/authSlice';
@@ -82,11 +89,17 @@ const FEATURES = [
     badge: 'Tools',
   },
   {
+    icon: Film,
+    title: 'Trade Replay',
+    desc: 'Replay any closed trade on a real candlestick chart. Watch price action unfold candle-by-candle with SL/TP lines, entry & exit markers, and full playback controls.',
+    badge: 'New ✨',
+    highlight: true,
+  },
+  {
     icon: Plug2,
     title: 'MetaTrader 5 Auto-Sync',
     desc: 'Attach our free EA to any chart and every trade — entry, exit, SL/TP, and P&L — is logged in Tradiary automatically. Zero manual entry.',
-    badge: 'New ✨',
-    highlight: true,
+    badge: 'MT5',
   },
   {
     icon: Shield,
@@ -209,6 +222,14 @@ const LandingPage = () => {
           <div className="hidden md:flex items-center gap-6 text-sm text-[var(--text-muted)]">
             <a href="#features" className="hover:text-[var(--text)] transition-colors">Features</a>
             <a
+              href="#trade-replay"
+              className="flex items-center gap-1.5 rounded-full border border-[var(--brand-indigo)]/30 bg-[var(--brand-indigo-subtle)] px-3 py-1 text-xs font-semibold transition-colors hover:border-[var(--brand-indigo)]/60"
+              style={{ color: 'var(--brand-indigo)' }}
+            >
+              <Film size={11} />
+              Trade Replay
+            </a>
+            <a
               href="#metatrader"
               className="flex items-center gap-1.5 rounded-full border border-[var(--brand-cyan)]/30 bg-[var(--brand-cyan-subtle)] px-3 py-1 text-xs font-semibold transition-colors hover:border-[var(--brand-cyan)]/60"
               style={{ color: 'var(--brand-cyan)' }}
@@ -271,6 +292,9 @@ const LandingPage = () => {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-[var(--border)] bg-[var(--surface)] px-4 py-4 space-y-2 animate-fade-in">
             <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">Features</a>
+            <a href="#trade-replay" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-1.5 py-2 text-sm font-semibold" style={{ color: 'var(--brand-indigo)' }}>
+              <Film size={13} /> Trade Replay
+            </a>
             <a href="#metatrader" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-1.5 py-2 text-sm font-semibold" style={{ color: 'var(--brand-cyan)' }}>
               <Plug2 size={13} /> MT5 Integration
             </a>
@@ -704,6 +728,301 @@ const LandingPage = () => {
           }
           @keyframes ping {
             75%, 100% { transform: scale(2); opacity: 0; }
+          }
+        `}</style>
+      </section>
+
+      {/* ═══════════════════════════════════ TRADE REPLAY SECTION ══════════ */}
+      <section id="trade-replay" className="relative px-4 py-24 sm:px-6 border-t border-[var(--border)] overflow-hidden">
+        {/* Ambient glows */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          <div className="absolute top-1/4 left-1/4 h-[500px] w-[500px] rounded-full opacity-[0.07] blur-[130px]" style={{ background: 'var(--brand-indigo)' }} />
+          <div className="absolute bottom-0 right-1/4 h-[400px] w-[400px] rounded-full opacity-[0.05] blur-[120px]" style={{ background: '#8B5CF6' }} />
+        </div>
+
+        <div className="mx-auto max-w-6xl relative">
+
+          {/* Section header */}
+          <div className="text-center mb-16">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold"
+                 style={{ borderColor: 'rgba(99,102,241,0.35)', background: 'rgba(99,102,241,0.10)', color: 'var(--brand-indigo)' }}>
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--brand-indigo)', animation: 'pulse-dot 1.5s cubic-bezier(0,0,0.2,1) infinite' }} />
+              New — Trade Replay
+            </div>
+            <h2 className="text-3xl font-extrabold font-display sm:text-4xl lg:text-5xl mb-5">
+              Relive every trade,{' '}
+              <span style={{ background: 'linear-gradient(135deg, var(--brand-indigo), #8B5CF6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>candle by candle.</span>
+            </h2>
+            <p className="text-[var(--text-muted)] max-w-2xl mx-auto leading-relaxed sm:text-lg">
+              Go beyond static logs. Replay any closed trade on a real candlestick chart and see exactly
+              how price moved — from 50 candles before your entry to 20 candles past your exit.
+            </p>
+          </div>
+
+          {/* ── Main feature card ── */}
+          <div className="rounded-2xl border overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.45)] mb-16"
+               style={{ borderColor: 'rgba(99,102,241,0.25)', background: 'linear-gradient(135deg, var(--surface) 0%, var(--surface-raised) 100%)' }}>
+            <div className="grid lg:grid-cols-2">
+
+              {/* ── Left: copy + feature bullets ── */}
+              <div className="p-8 sm:p-10 flex flex-col justify-center">
+                {/* Identity row */}
+                <div className="mb-7 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl shadow-lg"
+                       style={{ background: 'linear-gradient(135deg, var(--brand-indigo), #8B5CF6)' }}>
+                    <Film size={22} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--brand-indigo)' }}>Trade Replay</p>
+                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Powered by Yahoo Finance · 6 timeframes · Real candlestick data</p>
+                  </div>
+                </div>
+
+                <h3 className="text-xl font-bold mb-3 sm:text-2xl leading-snug" style={{ color: 'var(--text)' }}>
+                  See your trades the way the market saw them.
+                </h3>
+                <p className="text-sm leading-relaxed mb-7" style={{ color: 'var(--text-muted)' }}>
+                  Open any closed trade and switch to the Replay tab. Tradiary fetches real OHLCV candle data
+                  and plots your entry, exit, stop loss, and take profit directly on the chart — then lets
+                  you scrub through time to review your decision-making, frame by frame.
+                </p>
+
+                {/* Feature pills */}
+                <div className="flex flex-wrap gap-2 mb-8">
+                  {[
+                    { icon: SlidersHorizontal, label: '6 timeframes (1m → 1d)' },
+                    { icon: Target,            label: 'SL & TP price lines' },
+                    { icon: Play,              label: 'Playback + scrubber' },
+                    { icon: Activity,          label: 'Entry & exit markers' },
+                  ].map(({ icon: PillIcon, label }) => (
+                    <span key={label}
+                      className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+                      style={{ borderColor: 'var(--border)', background: 'var(--surface-100)', color: 'var(--text-muted)' }}>
+                      <PillIcon size={11} style={{ color: 'var(--brand-indigo)' }} />
+                      {label}
+                    </span>
+                  ))}
+                </div>
+
+                {/* CTA */}
+                <div className="flex flex-wrap gap-3">
+                  <a
+                    href="/signup"
+                    id="replay-cta-signup"
+                    className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 hover:scale-[1.02] active:scale-95"
+                    style={{ background: 'linear-gradient(135deg, var(--brand-indigo) 0%, #8B5CF6 100%)' }}
+                  >
+                    <Film size={15} />
+                    Try Trade Replay free
+                  </a>
+                  <a
+                    href="#how-it-works"
+                    id="replay-how-link"
+                    className="inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-semibold transition-all duration-200"
+                    style={{ borderColor: 'var(--border)', background: 'var(--surface-200)', color: 'var(--text)' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.4)'; e.currentTarget.style.color = 'var(--brand-indigo)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text)'; }}
+                  >
+                    How it works ↓
+                  </a>
+                </div>
+              </div>
+
+              {/* ── Right: animated mock replay UI ── */}
+              <div className="relative flex flex-col justify-start p-6 sm:p-8 border-t lg:border-t-0 lg:border-l gap-3"
+                   style={{ borderColor: 'rgba(99,102,241,0.18)', background: 'linear-gradient(135deg, rgba(99,102,241,0.04), rgba(139,92,246,0.04))' }}>
+
+                {/* Mock topbar */}
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>XAUUSD · 5m</span>
+                    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--brand-indigo)' }}>
+                      <span className="h-1 w-1 rounded-full" style={{ background: 'var(--brand-indigo)', animation: 'pulse-dot 1.5s ease-in-out infinite' }} />
+                      REPLAY
+                    </span>
+                  </div>
+                  {/* Timeframe bar mock */}
+                  <div className="flex items-center gap-0.5">
+                    {['1m','5m','15m','1h','1d'].map((tf, i) => (
+                      <span key={tf}
+                        className="px-2 py-0.5 rounded text-[9px] font-semibold transition-all"
+                        style={{
+                          background: i === 1 ? 'var(--brand-indigo)' : 'transparent',
+                          color: i === 1 ? '#fff' : 'var(--text-muted)',
+                          opacity: i === 0 ? 0.4 : 1,
+                        }}
+                      >{tf}</span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Mock candlestick chart */}
+                <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                  <svg viewBox="0 0 380 200" className="w-full" role="img" aria-label="Trade replay candlestick chart preview">
+                    {/* Grid lines */}
+                    {[40,80,120,160].map(y => (
+                      <line key={y} x1="0" y1={y} x2="380" y2={y} stroke="var(--border)" strokeWidth="0.5" strokeDasharray="2 4" opacity="0.6"/>
+                    ))}
+                    {/* SL line (red dashed) */}
+                    <line x1="0" y1="158" x2="380" y2="158" stroke="#EF4444" strokeWidth="1" strokeDasharray="4 3" opacity="0.8"/>
+                    <rect x="340" y="151" width="38" height="12" rx="2" fill="#EF444422"/>
+                    <text x="344" y="160" fill="#EF4444" fontSize="7" fontFamily="monospace">SL</text>
+                    {/* TP line (green dashed) */}
+                    <line x1="0" y1="38" x2="380" y2="38" stroke="#22C55E" strokeWidth="1" strokeDasharray="4 3" opacity="0.8"/>
+                    <rect x="340" y="31" width="38" height="12" rx="2" fill="#22C55E22"/>
+                    <text x="344" y="40" fill="#22C55E" fontSize="7" fontFamily="monospace">TP</text>
+                    {/* Candles - before entry (dimmed/revealed) */}
+                    {[
+                      [14,105,85,115,78],[28,115,90,118,84],[42,110,88,113,82],
+                      [56,120,92,122,88],[70,115,95,118,90],[84,118,100,121,94],
+                      [98,112,98,115,92],[112,108,105,112,100],[126,118,104,120,100],
+                      [140,114,108,117,103],[154,120,110,123,106],[168,116,112,119,108],
+                    ].map(([x, open, close, high, low], i) => {
+                      const isGreen = close > open;
+                      const color = isGreen ? '#22C55E' : '#EF4444';
+                      const bodyTop = Math.min(open, close);
+                      const bodyH = Math.abs(open - close) || 1;
+                      return (
+                        <g key={x} style={{ opacity: i < 9 ? 0.55 : 1 }}>
+                          <line x1={x+7} y1={high} x2={x+7} y2={low} stroke={color} strokeWidth="1"/>
+                          <rect x={x+1} y={bodyTop} width="12" height={bodyH} rx="1" fill={color} opacity="0.9"/>
+                        </g>
+                      );
+                    })}
+                    {/* Entry arrow marker */}
+                    <polygon points="182,133 188,125 194,133" fill="#6366F1" opacity="0.95"/>
+                    <text x="170" y="143" fill="#6366F1" fontSize="7" fontFamily="monospace">Entry</text>
+                    {/* Candles - after entry (revealed, vibrant) */}
+                    {[
+                      [182,112,118,120,108],[196,118,115,122,112],[210,115,120,123,112],
+                      [224,120,126,128,117],[238,126,122,129,119],[252,122,128,131,118],
+                      [266,128,124,133,121],[280,124,130,135,120],[294,130,127,136,124],
+                    ].map(([x, open, close, high, low], i) => {
+                      const isGreen = close > open;
+                      const color = isGreen ? '#22C55E' : '#EF4444';
+                      const bodyTop = Math.min(open, close);
+                      const bodyH = Math.abs(open - close) || 1;
+                      return (
+                        <g key={x}>
+                          <line x1={x+7} y1={high} x2={x+7} y2={low} stroke={color} strokeWidth="1"/>
+                          <rect x={x+1} y={bodyTop} width="12" height={bodyH} rx="1" fill={color} opacity="0.95"/>
+                        </g>
+                      );
+                    })}
+                    {/* Exit arrow marker */}
+                    <polygon points="296,118 302,126 308,118" fill="#22D3EE" opacity="0.95"/>
+                    <text x="284" y="115" fill="#22D3EE" fontSize="7" fontFamily="monospace">Exit</text>
+                    {/* Unrevealed candles (greyed out / future) */}
+                    {[
+                      [310,127,124,130,121],[324,124,121,127,118],[338,121,118,124,115],[352,118,115,121,112]
+                    ].map(([x, open, close, high, low]) => (
+                      <g key={x} opacity="0.18">
+                        <line x1={x+7} y1={high} x2={x+7} y2={low} stroke="var(--text-muted)" strokeWidth="1"/>
+                        <rect x={x+1} y={Math.min(open,close)} width="12" height={Math.abs(open-close)||1} rx="1" fill="var(--text-muted)"/>
+                      </g>
+                    ))}
+                    {/* Vertical entry line */}
+                    <line x1="188" y1="0" x2="188" y2="200" stroke="#6366F1" strokeWidth="0.75" strokeDasharray="3 3" opacity="0.5"/>
+                    {/* Vertical exit line */}
+                    <line x1="302" y1="0" x2="302" y2="200" stroke="#22D3EE" strokeWidth="0.75" strokeDasharray="3 3" opacity="0.5"/>
+                    {/* P&L badge */}
+                    <rect x="196" y="56" width="54" height="18" rx="4" fill="#22C55E22" stroke="#22C55E" strokeWidth="0.75"/>
+                    <text x="223" y="68" fill="#22C55E" fontSize="8" fontFamily="monospace" textAnchor="middle">+$342.50</text>
+                    <line x1="188" y1="65" x2="198" y2="65" stroke="#22C55E" strokeWidth="0.75" opacity="0.6"/>
+                  </svg>
+                </div>
+
+                {/* Playback controls mock */}
+                <div className="rounded-xl border px-4 py-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                  {/* Scrubber */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-mono w-8 text-right" style={{ color: 'var(--text-muted)' }}>21</span>
+                    <div className="flex-1 relative h-1.5 rounded-full" style={{ background: 'var(--surface-200)' }}>
+                      <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: '55%', background: 'linear-gradient(90deg, var(--brand-indigo), #8B5CF6)' }} />
+                      <div className="absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full border-2 border-white shadow" style={{ left: 'calc(55% - 6px)', background: 'var(--brand-indigo)' }} />
+                    </div>
+                    <span className="text-[10px] font-mono w-8" style={{ color: 'var(--text-muted)' }}>38</span>
+                  </div>
+                  {/* Buttons */}
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <div className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white" style={{ background: 'var(--brand-indigo)' }}>
+                      <Pause size={11} /> Pause
+                    </div>
+                    {/* Speed buttons */}
+                    <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+                      {['0.5×','1×','2×','4×','8×'].map((s, i) => (
+                        <span key={s} className="px-2 py-1.5 text-[10px] font-medium"
+                              style={{ background: i === 1 ? 'var(--brand-indigo)' : 'transparent', color: i === 1 ? '#fff' : 'var(--text-muted)' }}>{s}</span>
+                      ))}
+                    </div>
+                    <div className="flex-1" />
+                    <div className="flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[10px] font-medium" style={{ borderColor: 'var(--border)', color: '#6366F1' }}>
+                      <SkipBack size={10} /> Entry
+                    </div>
+                    <div className="flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[10px] font-medium" style={{ borderColor: 'var(--border)', color: '#22D3EE' }}>
+                      Exit <SkipForward size={10} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Legend row */}
+                <div className="flex flex-wrap items-center gap-3 text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                  <span className="flex items-center gap-1"><svg width="16" height="5"><line x1="0" y1="2.5" x2="16" y2="2.5" stroke="#EF4444" strokeWidth="1.5" strokeDasharray="3 2"/></svg> SL</span>
+                  <span className="flex items-center gap-1"><svg width="16" height="5"><line x1="0" y1="2.5" x2="16" y2="2.5" stroke="#22C55E" strokeWidth="1.5" strokeDasharray="3 2"/></svg> TP</span>
+                  <span className="flex items-center gap-1"><span style={{ color: '#6366F1', fontSize: 11 }}>▲</span> Entry</span>
+                  <span className="flex items-center gap-1"><span style={{ color: '#22D3EE', fontSize: 11 }}>▼</span> Exit</span>
+                  <span className="ml-auto">38 candles · XAUUSD</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── 3-column feature callouts ── */}
+          <div className="grid gap-5 sm:grid-cols-3">
+            {[
+              {
+                icon: Film,
+                title: 'Real market data',
+                desc: 'Tradiary fetches authentic OHLCV data from Yahoo Finance so your replay matches the actual market, not a simulation.',
+                color: 'var(--brand-indigo)',
+                subtle: 'rgba(99,102,241,0.1)',
+              },
+              {
+                icon: SlidersHorizontal,
+                title: 'Six timeframes',
+                desc: 'Switch between 1m, 5m, 15m, 30m, 1h, and 1d. Grayed-out timeframes indicate data beyond Yahoo Finance\'s intraday window.',
+                color: '#8B5CF6',
+                subtle: 'rgba(139,92,246,0.1)',
+              },
+              {
+                icon: Target,
+                title: 'Full trade context',
+                desc: '50 candles before entry and 20 after exit are loaded — so you see the setup, the trade, and the aftermath clearly.',
+                color: 'var(--brand-indigo)',
+                subtle: 'rgba(99,102,241,0.1)',
+              },
+            ].map(({ icon: CalloutIcon, title, desc, color, subtle }) => (
+              <div key={title}
+                className="group rounded-2xl border p-6 transition-all duration-200"
+                style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = color + '50'; e.currentTarget.style.boxShadow = `0 8px 32px ${color}22`; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}
+              >
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl transition-all" style={{ background: subtle }}>
+                  <CalloutIcon size={18} style={{ color }} />
+                </div>
+                <h3 className="mb-2 font-semibold" style={{ color: 'var(--text)' }}>{title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Inline keyframes */}
+        <style>{`
+          @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
           }
         `}</style>
       </section>
