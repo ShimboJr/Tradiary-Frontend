@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
 //| tradiary-bridge.mq5                                              |
-//| Tradiary MetaTrader 5 Bridge EA  v1.3                           |
+//| Tradiary MetaTrader 5 Bridge EA  v1.4                           |
 //|                                                                  |
 //| Automatically pushes trade open/close events to your Tradiary    |
 //| journal via WebRequest.                                          |
@@ -17,7 +17,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Tradiary"
 #property link      "https://tradairy.vercel.app/"
-#property version   "1.30"
+#property version   "1.40"
 #property strict
 
 //--- Inputs
@@ -36,6 +36,17 @@ double g_trackedTP[];
 //--- How many days back to scan for missed closed deals on restart
 input int InpHistorySyncDays = 7;
 
+//--- Seconds to wait after EA startup before running the history sync.
+//    MT5 re-connects to the broker asynchronously after launch; if we call
+//    HistorySelect() too early (inside OnInit) the deal cache is still empty
+//    and no missed deals are found.  Default 20 s covers most broker latencies.
+//    Increase to 30–60 if your broker's server is slow or you are on a VPS.
+input int InpHistorySyncDelaySec = 20;
+
+//--- Runtime state — history sync
+bool g_syncDone          = false;  // set to true once sync has run
+int  g_startupTicksLeft  = 0;      // counts down in OnTimer before sync fires
+
 //+------------------------------------------------------------------+
 //| OnInit                                                           |
 //+------------------------------------------------------------------+
@@ -46,11 +57,23 @@ int OnInit()
       Print("Tradiary Bridge: InpApiToken is empty. Please set your API token in the EA inputs.");
       return(INIT_FAILED);
    }
-   EventSetTimer(2); // drain queue every 2 seconds
-   Print("Tradiary Bridge v1.3: started. Webhook URL: ", InpApiUrl);
 
-   // ── Strategy 4: replay any deals that closed while we were offline ─────────
-   SyncMissedClosedDeals();
+   // Timer fires every 2 seconds — used both for queue draining and the
+   // deferred history sync.  2 ticks = 4 s, so the countdown below in
+   // OnTimer() converts InpHistorySyncDelaySec into a tick count correctly.
+   EventSetTimer(2);
+
+   // Compute how many 2-second ticks to wait before running the history sync.
+   // We do NOT call SyncMissedClosedDeals() here because MT5 re-connects to
+   // the broker server asynchronously after startup; HistorySelect() called
+   // immediately inside OnInit() sees an empty or partial deal cache and finds
+   // nothing to replay.  The countdown defers the call until history is ready.
+   g_syncDone         = false;
+   g_startupTicksLeft = MathMax(1, (int)MathCeil((double)InpHistorySyncDelaySec / 2.0));
+
+   Print("Tradiary Bridge v1.4: started. Webhook URL: ", InpApiUrl);
+   Print("Tradiary Bridge: history sync scheduled in ~", InpHistorySyncDelaySec, " s (",
+         g_startupTicksLeft, " timer ticks).");
 
    return(INIT_SUCCEEDED);
 }
@@ -218,7 +241,8 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
 }
 
 //+------------------------------------------------------------------+
-//| SyncMissedClosedDeals — called once from OnInit                  |
+//| SyncMissedClosedDeals — called once from OnTimer after startup   |
+//| delay elapses (NOT from OnInit — history not ready that early).  |
 //| Scans broker history for the past InpHistorySyncDays days and     |
 //| replays any trade_close events that Tradiary may have missed while |
 //| the EA was not running. The server handles duplicates gracefully  |
@@ -308,10 +332,37 @@ void SyncMissedClosedDeals()
 }
 
 //+------------------------------------------------------------------+
-//| OnTimer — drain the send queue (runs every 2 s)                  |
+//| OnTimer — runs every 2 s: deferred history sync + queue drain    |
 //+------------------------------------------------------------------+
 void OnTimer()
 {
+   // ── Deferred history sync ──────────────────────────────────────────────
+   // We cannot call SyncMissedClosedDeals() from OnInit() because MT5 loads
+   // deal history from the broker server asynchronously after startup.
+   // Calling HistorySelect() too early returns an empty cache, so no missed
+   // deals would be found on the very first launch.
+   //
+   // Instead we count down timer ticks here and fire the sync once the
+   // startup delay has elapsed — by which point the terminal has had time to
+   // fully re-sync with the broker's deal history.
+   if(!g_syncDone)
+   {
+      if(g_startupTicksLeft > 0)
+      {
+         g_startupTicksLeft--;
+         // Optional progress log (uncomment for debugging):
+         // Print("Tradiary Bridge: history sync in ", g_startupTicksLeft * 2, " s...");
+      }
+      else
+      {
+         // Countdown reached zero — broker history should now be available.
+         g_syncDone = true;
+         Print("Tradiary Bridge: startup delay elapsed, running history sync now.");
+         SyncMissedClosedDeals();
+      }
+   }
+
+   // ── Drain outbound queue ──────────────────────────────────────────────────
    while(ArraySize(g_queue) > 0)
    {
       string payload = g_queue[0];
