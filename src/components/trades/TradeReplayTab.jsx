@@ -509,8 +509,8 @@ export default function TradeReplayTab({ trade }) {
       <div className="flex items-start gap-1.5 text-[10px] text-[var(--color-text-muted)] opacity-70">
         <Info size={11} className="mt-0.5 shrink-0" />
         <span>
-          Chart data from Yahoo Finance. Prices are interbank mid-rates and may differ slightly from broker-specific pricing.
-          Spot metals use <code className="text-[10px]">XAUUSD=X</code> / <code className="text-[10px]">XAGUSD=X</code>.
+          Chart data sourced from Yahoo Finance. Prices may differ slightly from broker-specific pricing.
+          Metals use Yahoo Finance futures contracts (GC=F for gold, SI=F for silver).
         </span>
       </div>
     </div>
