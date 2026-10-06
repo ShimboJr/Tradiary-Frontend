@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
 //| tradiary-bridge.mq5                                              |
-//| Tradiary MetaTrader 5 Bridge EA  v1.4                           |
+//| Tradiary MetaTrader 5 Bridge EA  v1.5                           |
 //|                                                                  |
 //| Automatically pushes trade open/close events to your Tradiary    |
 //| journal via WebRequest.                                          |
@@ -17,7 +17,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Tradiary"
 #property link      "https://tradairy.vercel.app/"
-#property version   "1.40"
+#property version   "1.50"
 #property strict
 
 //--- Inputs
@@ -71,7 +71,7 @@ int OnInit()
    g_syncDone         = false;
    g_startupTicksLeft = MathMax(1, (int)MathCeil((double)InpHistorySyncDelaySec / 2.0));
 
-   Print("Tradiary Bridge v1.4: started. Webhook URL: ", InpApiUrl);
+   Print("Tradiary Bridge v1.5: started. Webhook URL: ", InpApiUrl);
    Print("Tradiary Bridge: history sync scheduled in ~", InpHistorySyncDelaySec, " s (",
          g_startupTicksLeft, " timer ticks).");
 
@@ -273,7 +273,7 @@ void SyncMissedClosedDeals()
 
       long   dealType   = HistoryDealGetInteger(ticket, DEAL_TYPE);
       string symbol     = HistoryDealGetString(ticket,  DEAL_SYMBOL);
-      double dealPrice  = HistoryDealGetDouble(ticket,  DEAL_PRICE);   // open price (best available)
+      double dealPrice  = HistoryDealGetDouble(ticket,  DEAL_PRICE);   // close price for OUT deals
       double closePrice = dealPrice;                                     // close == same deal price for OUT deals
       double lots       = HistoryDealGetDouble(ticket,  DEAL_VOLUME);
       double commission = HistoryDealGetDouble(ticket,  DEAL_COMMISSION);
@@ -282,11 +282,15 @@ void SyncMissedClosedDeals()
       long   posTicket  = HistoryDealGetInteger(ticket, DEAL_POSITION_ID);
       datetime dealTime = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
 
-      // Recover entry (open) price from the matching DEAL_ENTRY_IN deal
+      // Recover entry (open) price and TRUE direction from the matching DEAL_ENTRY_IN deal.
+      // IMPORTANT: In MT5 the closing deal type is always the OPPOSITE of the actual trade
+      // direction (e.g. a Buy/Long trade is closed by a DEAL_TYPE_SELL deal).  We must
+      // read the direction from the opening deal, not the closing deal, to log it correctly.
       double entryPrice = 0.0;
       datetime entryTime = 0;
       double sl = HistoryDealGetDouble(ticket, DEAL_SL);
       double tp = HistoryDealGetDouble(ticket, DEAL_TP);
+      long   entryDealType = dealType; // fallback — overwritten below when opening deal is found
 
       // Scan history for the corresponding opening deal of this position
       for(int j = 0; j < total; j++)
@@ -295,14 +299,16 @@ void SyncMissedClosedDeals()
          if(t2 == 0) continue;
          if(HistoryDealGetInteger(t2, DEAL_POSITION_ID) != posTicket) continue;
          if(HistoryDealGetInteger(t2, DEAL_ENTRY) != DEAL_ENTRY_IN)   continue;
-         entryPrice = HistoryDealGetDouble(t2, DEAL_PRICE);
-         entryTime  = (datetime)HistoryDealGetInteger(t2, DEAL_TIME);
+         entryPrice    = HistoryDealGetDouble(t2,  DEAL_PRICE);
+         entryTime     = (datetime)HistoryDealGetInteger(t2, DEAL_TIME);
+         entryDealType = HistoryDealGetInteger(t2,  DEAL_TYPE); // BUY on a Long, SELL on a Short
          break;
       }
       if(entryPrice <= 0.0) entryPrice = dealPrice; // fallback
       if(entryTime  == 0)   entryTime  = dealTime;
 
-      string typStr    = (dealType == DEAL_TYPE_BUY) ? "buy" : "sell";
+      // Use the OPENING deal type for direction — it matches the actual trade direction.
+      string typStr    = (entryDealType == DEAL_TYPE_BUY) ? "buy" : "sell";
       string ticketStr = IntegerToString(posTicket);
 
       double contractSize = SymbolInfoDouble(symbol, SYMBOL_TRADE_CONTRACT_SIZE);
